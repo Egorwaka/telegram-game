@@ -726,7 +726,7 @@
   function maybeTriggerEvent(){
     if (state.clicksTotal < 8) return;
     if (overlay.classList.contains('show')) return;
-    if (state.clicksTotal % 600 !== 0) return;
+    if (state.clicksTotal % 500 !== 0) return;
     if (Math.random() > 0.15) return;
     triggerRandomEvent();
   }
@@ -745,7 +745,7 @@
   setInterval(function(){
     if (overlay.classList.contains('show')) return;
     if (Math.random() < 0.1) triggerRandomEvent();
-  }, 400000);
+  }, 350000);
 
   // ---------- Init ----------
   recalc();
