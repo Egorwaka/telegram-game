@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-<title>БЕЛАН КЛИКЕР</title>
+<title>Империя Белана</title>
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
 <style>
   :root{
@@ -247,12 +247,12 @@
 
   <header>
     <div class="brand">
-      <div class="brand-title">БЕЛАН <b>КЛИКЕР</b> 🐟</div>
+      <div class="brand-title">ИМПЕРИЯ <b>БЕЛАНА</b> 🐟</div>
       <div class="tabs"><span class="tab-dot active" id="dotMain"></span><span class="tab-dot" id="dotShop"></span></div>
     </div>
     <div class="balance-card">
       <div class="balance-main">
-        <div class="label">НА КАРМАНЕ</div>
+        <div class="label">В ВЕДРЕ</div>
         <div class="value"><span id="balanceVal">0</span><span class="unit">рыб</span></div>
       </div>
       <div class="income-side">
@@ -261,8 +261,8 @@
       </div>
     </div>
     <div class="buff-row">
-      <div class="buff-chip good" id="chipSammer">🔥 Толя Саммер жарит x2 — <span id="sammerTime">10</span>с</div>
-      <div class="buff-chip bad" id="chipGruzin">😤 Грузин душит — <span id="gruzinTime">30</span>с</div>
+      <div class="buff-chip good" id="chipSammer">🔥 Толя Саммер играет x2 — <span id="sammerTime">10</span>с</div>
+      <div class="buff-chip bad" id="chipGruzin">😤 Грузин заёбывает — <span id="gruzinTime">30</span>с</div>
     </div>
   </header>
 
@@ -271,7 +271,7 @@
       <div class="ring"></div>
       <button id="clickBtn">🎣</button>
     </div>
-    <div class="click-hint" id="clickHint">Тыкай в Белана — он всё равно не поймёт, что происходит</div>
+    <div class="click-hint" id="clickHint">Тапай в Белана — он всё равно не поймёт, что происходит</div>
   </main>
 
   <div id="shopScreen">
@@ -334,7 +334,7 @@
       group: 'click',
       emoji: '🚬',
       name: 'Испарик Pasito II',
-      desc: 'Новый вкус — тяга дольше, клик жирнее',
+      desc: 'Новая мощность — тяга дольше, клик жирнее',
       baseCost: 15,
       growth: 1.16,
       effect: 1, // +к клику за уровень
@@ -356,7 +356,7 @@
       group: 'passive',
       emoji: '🍔',
       name: 'Помочь Сане доесть комбо',
-      desc: 'Толстый брат делится крошками — доход сам капает',
+      desc: 'Толстый брат делится хавкой — доход сам капает',
       baseCost: 40,
       growth: 1.15,
       effect: 1,
@@ -366,8 +366,8 @@
       id: 'pyaterka',
       group: 'passive',
       emoji: '🛒',
-      name: 'Стырить чипсы в Пятёрочке',
-      desc: 'Охрана спит, касса открыта, совесть выключена',
+      name: 'Спиздить чипсы в Пятёрочке',
+      desc: 'Продавцы не видят, камер нет, совесть выключена',
       baseCost: 150,
       growth: 1.18,
       effect: 4,
@@ -377,8 +377,8 @@
       id: 'smotrящий',
       group: 'passive',
       emoji: '📞',
-      name: 'Занять у смотрящего',
-      desc: 'Долг вернём... как-нибудь потом',
+      name: 'Занять у Вовчика',
+      desc: 'Долг верну... с пенсии',
       baseCost: 500,
       growth: 1.2,
       effect: 12,
@@ -399,8 +399,8 @@
       id: 'veneg',
       group: 'mult',
       emoji: '💿',
-      name: 'Колонки на всю улицу',
-      desc: 'Весь двор слышит — уважение растёт кратно',
+      name: '4К на всю улицу',
+      desc: 'Весь двор слышит моё крутое музло — уважение растёт кратно',
       baseCost: 900,
       growth: 1.7,
       effect: 0.25,
@@ -416,13 +416,13 @@
     'Ещё рыбка в сетку',
     'Затянулся — красота',
     'Есть щука, есть!',
-    'Дыхалка не резиновая, но клик пошёл',
+    'Чёт я заебался, но клик сделал',
     'Белан в моменте'
   ];
 
   var IDLE_HINTS = [
-    'Тыкай в Белана — он всё равно не поймёт, что происходит',
-    'Совет: подики не заканчиваются, если не думать об этом',
+    'Тапай в Белана — он всё равно не поймёт, что происходит',
+    'Совет: жижа не заканчивается, если не думать об этом',
     'Рыбнадзор далеко, а Белан близко',
     'Клик — дело нехитрое, зато прибыльное'
   ];
@@ -696,7 +696,7 @@
         var fine = Math.max(5, Math.floor(state.balance * (0.1 + Math.random()*0.15)));
         state.balance = Math.max(0, state.balance - fine);
         render();
-        showEvent('🥴','Батя Веник спалил!',
+        showEvent('🥴','Веник спалил!',
           'Батя учуял подик через три стены. Штраф — '+fmt(fine)+' рыб, и ещё нотация минут на двадцать.',
           'bad');
       }
@@ -706,8 +706,8 @@
       weight: 3,
       run: function(){
         startBuff('gruzin', 30);
-        showEvent('😤','Друг Грузин унижает',
-          'Грузин прошёлся по Белану при всём дворе. Доход на 40% просел на 30 секунд — обидно, но заслуженно.',
+        showEvent('😤','Грузин унижает',
+          'Грузин прошёлся по Белану при всём парке. Доход на 40% просел на 30 секунд — обидно, но заслуженно.',
           'bad');
       }
     },
@@ -716,7 +716,7 @@
       weight: 3,
       run: function(){
         startBuff('sammer', 10);
-        showEvent('🎧','Толя Саммер жарит!',
+        showEvent('🎧','Толя Саммер играет!',
           'Из соседнего окна врубили Толю Саммера. Белана накрыло вдохновением — клик x2 на 10 секунд!',
           'good');
       }
