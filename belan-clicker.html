@@ -1,0 +1,944 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>БЕЛАН: ГАРАЖНЫЙ КЛИКЕР</title>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&family=PT+Sans:wght@400;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#17181a;
+    --bg-panel:#221f1d;
+    --bg-panel-alt:#2a2624;
+    --rust:#c1592f;
+    --rust-dark:#8f3f20;
+    --olive:#6f7a4f;
+    --warn:#e8b23d;
+    --text:#ece6d8;
+    --text-dim:#9b9284;
+    --border:#3c3733;
+    --tape: repeating-linear-gradient(135deg,#e8b23d,#e8b23d 10px,#1b1b1a 10px,#1b1b1a 20px);
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent; user-select:none; -webkit-user-select:none;}
+  html,body{height:100%;}
+  body{
+    margin:0;
+    background:var(--bg);
+    background-image:
+      radial-gradient(ellipse at top, rgba(193,89,47,0.08), transparent 60%),
+      radial-gradient(circle at 10% 90%, rgba(111,122,79,0.06), transparent 50%);
+    color:var(--text);
+    font-family:'PT Sans', sans-serif;
+    overscroll-behavior:none;
+    touch-action:manipulation;
+    min-height:100vh;
+  }
+  .app{
+    max-width:480px;
+    margin:0 auto;
+    min-height:100vh;
+    display:flex;
+    flex-direction:column;
+    padding-bottom:24px;
+  }
+
+  /* HEADER */
+  header{
+    padding:14px 16px 10px;
+    border-bottom:3px solid var(--border);
+    background:var(--bg-panel);
+    position:relative;
+  }
+  header::after{
+    content:"";
+    position:absolute; left:0; right:0; bottom:-6px; height:6px;
+    background:var(--tape);
+    opacity:.55;
+  }
+  .title-row{
+    display:flex; align-items:baseline; justify-content:space-between; gap:8px;
+  }
+  h1{
+    font-family:'Oswald',sans-serif;
+    font-weight:700;
+    font-size:22px;
+    letter-spacing:.5px;
+    margin:0;
+    color:var(--text);
+  }
+  h1 span{color:var(--rust);}
+  .rank{
+    font-size:12px;
+    color:var(--warn);
+    font-weight:700;
+    text-align:right;
+    line-height:1.2;
+    white-space:nowrap;
+  }
+  .stats{
+    display:flex;
+    justify-content:space-between;
+    align-items:flex-end;
+    margin-top:10px;
+  }
+  .balance{
+    font-family:'Oswald',sans-serif;
+    font-size:30px;
+    font-weight:600;
+    color:var(--warn);
+    line-height:1;
+  }
+  .balance small{
+    font-family:'PT Sans',sans-serif;
+    font-size:13px;
+    color:var(--text-dim);
+    font-weight:400;
+    margin-left:6px;
+  }
+  .persec{
+    font-size:13px;
+    color:var(--olive);
+    font-weight:700;
+  }
+
+  /* CLICKER ZONE */
+  .clicker-zone{
+    flex:1;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
+    padding:20px 16px 10px;
+    position:relative;
+    min-height:340px;
+  }
+  .float-wrap{
+    position:relative;
+    width:100%;
+    display:flex;
+    justify-content:center;
+  }
+  .avatar-btn{
+    all:unset;
+    cursor:pointer;
+    width:200px;
+    height:200px;
+    border-radius:50%;
+    background:radial-gradient(circle at 35% 30%, #3a352f, #201d1a 70%);
+    border:6px solid var(--rust-dark);
+    box-shadow:0 0 0 4px #17181a, inset 0 0 30px rgba(0,0,0,.6), 0 10px 24px rgba(0,0,0,.5);
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    position:relative;
+    transition:transform .06s ease;
+  }
+  .avatar-btn:active{transform:scale(.93);}
+  .avatar-btn.bounce{animation:bounce .18s ease;}
+  @keyframes bounce{
+    0%{transform:scale(1);}
+    40%{transform:scale(.9) rotate(-2deg);}
+    100%{transform:scale(1);}
+  }
+  .avatar-btn svg{width:78%; height:78%;}
+
+  .floaters{
+    position:absolute;
+    inset:0;
+    pointer-events:none;
+    overflow:visible;
+  }
+  .float-num{
+    position:absolute;
+    font-family:'Oswald',sans-serif;
+    font-weight:700;
+    color:var(--warn);
+    font-size:20px;
+    text-shadow:0 2px 3px rgba(0,0,0,.6);
+    animation:rise .9s ease-out forwards;
+    white-space:nowrap;
+  }
+  @keyframes rise{
+    0%{opacity:1; transform:translateY(0);}
+    100%{opacity:0; transform:translateY(-70px);}
+  }
+
+  .phrase-box{
+    margin-top:18px;
+    min-height:44px;
+    max-width:320px;
+    text-align:center;
+    font-size:14px;
+    color:var(--text-dim);
+    padding:8px 14px;
+    border:1px dashed var(--border);
+    border-radius:8px;
+    background:rgba(0,0,0,.15);
+  }
+  .phrase-box b{color:var(--warn); font-weight:700;}
+
+  .click-hint{
+    margin-top:10px;
+    font-size:11px;
+    letter-spacing:1px;
+    color:var(--text-dim);
+    text-transform:uppercase;
+  }
+
+  /* TABS */
+  .tabs{
+    display:flex;
+    gap:2px;
+    padding:0 12px;
+    margin-top:6px;
+  }
+  .tab-btn{
+    flex:1;
+    all:unset;
+    text-align:center;
+    padding:10px 6px;
+    font-family:'Oswald',sans-serif;
+    font-weight:600;
+    font-size:14px;
+    letter-spacing:.3px;
+    color:var(--text-dim);
+    background:var(--bg-panel);
+    border:2px solid var(--border);
+    cursor:pointer;
+  }
+  .tab-btn.active{
+    color:var(--bg);
+    background:var(--warn);
+    border-color:var(--warn);
+  }
+
+  /* SHOP */
+  .panel{
+    background:var(--bg-panel);
+    border:2px solid var(--border);
+    margin:0 12px 12px;
+    padding:12px;
+  }
+  .shop-item{
+    display:flex;
+    align-items:center;
+    gap:12px;
+    padding:12px;
+    background:var(--bg-panel-alt);
+    border:2px solid var(--border);
+    margin-bottom:10px;
+  }
+  .shop-item:last-child{margin-bottom:0;}
+  .shop-icon{
+    width:44px; height:44px; flex-shrink:0;
+    display:flex; align-items:center; justify-content:center;
+    background:#1c1a18;
+    border:2px solid var(--rust-dark);
+    font-size:22px;
+  }
+  .shop-info{flex:1; min-width:0;}
+  .shop-name{
+    font-family:'Oswald',sans-serif;
+    font-weight:600;
+    font-size:15px;
+    color:var(--text);
+  }
+  .shop-desc{
+    font-size:12px;
+    color:var(--text-dim);
+    margin-top:2px;
+    line-height:1.3;
+  }
+  .shop-lvl{
+    font-size:11px;
+    color:var(--olive);
+    font-weight:700;
+    margin-top:3px;
+  }
+  .buy-btn{
+    all:unset;
+    cursor:pointer;
+    flex-shrink:0;
+    font-family:'Oswald',sans-serif;
+    font-weight:700;
+    font-size:13px;
+    color:var(--bg);
+    background:var(--warn);
+    padding:10px 12px;
+    text-align:center;
+    min-width:76px;
+    border:2px solid #b8892e;
+  }
+  .buy-btn:active{transform:scale(.95);}
+  .buy-btn.disabled{
+    background:#4a463f;
+    color:#7d786c;
+    border-color:#4a463f;
+  }
+
+  .empty-state{
+    text-align:center;
+    color:var(--text-dim);
+    font-size:13px;
+    padding:20px 10px;
+  }
+
+  /* MODAL EVENT */
+  .modal-overlay{
+    position:fixed; inset:0;
+    background:rgba(10,9,8,.82);
+    display:flex; align-items:center; justify-content:center;
+    padding:20px;
+    z-index:50;
+    opacity:0;
+    pointer-events:none;
+    transition:opacity .18s ease;
+  }
+  .modal-overlay.show{opacity:1; pointer-events:auto;}
+  .modal-box{
+    background:var(--bg-panel);
+    border:3px solid var(--rust);
+    max-width:360px;
+    width:100%;
+    padding:18px;
+    position:relative;
+    transform:scale(.9);
+    transition:transform .18s ease;
+  }
+  .modal-overlay.show .modal-box{transform:scale(1);}
+  .modal-box::before{
+    content:"";
+    position:absolute; top:-3px; left:-3px; right:-3px; height:8px;
+    background:var(--tape);
+  }
+  .modal-title{
+    font-family:'Oswald',sans-serif;
+    font-weight:700;
+    font-size:17px;
+    color:var(--warn);
+    margin:6px 0 8px;
+  }
+  .modal-text{
+    font-size:14px;
+    color:var(--text);
+    line-height:1.45;
+    margin-bottom:16px;
+  }
+  .modal-actions{
+    display:flex;
+    flex-direction:column;
+    gap:8px;
+  }
+  .modal-choice{
+    all:unset;
+    cursor:pointer;
+    font-family:'PT Sans',sans-serif;
+    font-weight:700;
+    font-size:14px;
+    padding:12px;
+    text-align:center;
+    background:var(--bg-panel-alt);
+    border:2px solid var(--border);
+    color:var(--text);
+  }
+  .modal-choice:active{transform:scale(.97);}
+  .modal-choice.primary{
+    background:var(--rust);
+    border-color:var(--rust-dark);
+    color:#fff;
+  }
+
+  /* TOAST */
+  .toast{
+    position:fixed;
+    bottom:18px;
+    left:50%;
+    transform:translateX(-50%) translateY(20px);
+    background:var(--olive);
+    color:#161611;
+    font-weight:700;
+    font-size:13px;
+    padding:10px 16px;
+    border:2px solid #545e3c;
+    opacity:0;
+    transition:all .25s ease;
+    z-index:60;
+    max-width:90%;
+    text-align:center;
+  }
+  .toast.show{opacity:1; transform:translateX(-50%) translateY(0);}
+
+  ::-webkit-scrollbar{width:0;height:0;}
+</style>
+</head>
+<body>
+<div class="app">
+
+  <header>
+    <div class="title-row">
+      <h1>БЕЛАН<span>.КЛИКЕР</span></h1>
+      <div class="rank" id="rankLabel">Пацан с удочкой</div>
+    </div>
+    <div class="stats">
+      <div class="balance"><span id="balance">0</span><small>руб. на жижу</small></div>
+      <div class="persec" id="persec">+0/сек</div>
+    </div>
+  </header>
+
+  <div class="clicker-zone">
+    <div class="float-wrap">
+      <button class="avatar-btn" id="avatarBtn" aria-label="Кликнуть Белана">
+        <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+          <circle cx="50" cy="52" r="34" fill="#d8a066"/>
+          <path d="M16 44 Q50 8 84 44 L84 30 Q50 4 16 30 Z" fill="var(--olive)"/>
+          <rect x="14" y="28" width="72" height="10" fill="var(--olive)"/>
+          <ellipse cx="37" cy="55" rx="6" ry="4" fill="#20180f"/>
+          <ellipse cx="63" cy="55" rx="6" ry="4" fill="#20180f"/>
+          <path d="M30 74 Q50 88 70 74" stroke="#20180f" stroke-width="4" fill="none" stroke-linecap="round"/>
+          <path d="M28 68 Q50 78 72 68" stroke="#5c4326" stroke-width="6" fill="none" stroke-linecap="round"/>
+          <rect x="66" y="60" width="14" height="4" rx="2" fill="#555"/>
+          <ellipse cx="83" cy="58" rx="5" ry="3" fill="#cfcfcf" opacity="0.7"/>
+        </svg>
+      </button>
+      <div class="floaters" id="floaters"></div>
+    </div>
+
+    <div class="phrase-box" id="phraseBox">Тыкай в Белана — заработай на жижу.</div>
+    <div class="click-hint">тап по Белану</div>
+  </div>
+
+  <div class="tabs">
+    <button class="tab-btn active" data-tab="shop">Магазин</button>
+    <button class="tab-btn" data-tab="stats">Родня</button>
+  </div>
+
+  <div class="panel" id="tab-shop"></div>
+
+  <div class="panel" id="tab-stats" style="display:none;">
+    <div class="shop-item">
+      <div class="shop-icon">👨‍🔧</div>
+      <div class="shop-info">
+        <div class="shop-name">Отец Веник</div>
+        <div class="shop-desc">Строгий, гараж — храм. Клипсы гнуть не советует. Всегда рядом с монтировкой.</div>
+      </div>
+    </div>
+    <div class="shop-item">
+      <div class="shop-icon">🛋️</div>
+      <div class="shop-info">
+        <div class="shop-name">Брат Саня</div>
+        <div class="shop-desc">Старший, тучный, диван — его стихия. Пельмени не поделит ни с кем, но попытаться можно.</div>
+      </div>
+    </div>
+    <div class="shop-item">
+      <div class="shop-icon">🎣</div>
+      <div class="shop-info">
+        <div class="shop-name">Речка</div>
+        <div class="shop-desc">Клюёт редко, странное — часто. Личный дзен Белана вдали от родни.</div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<div class="modal-overlay" id="modalOverlay">
+  <div class="modal-box">
+    <div class="modal-title" id="modalTitle"></div>
+    <div class="modal-text" id="modalText"></div>
+    <div class="modal-actions" id="modalActions"></div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+(function(){
+  "use strict";
+
+  var tg = window.Telegram && window.Telegram.WebApp ? window.Telegram.WebApp : null;
+  if(tg){
+    tg.ready();
+    tg.expand();
+    try{ tg.setHeaderColor('#17181a'); }catch(e){}
+    try{ tg.setBackgroundColor('#17181a'); }catch(e){}
+  }
+
+  function haptic(kind){
+    if(tg && tg.HapticFeedback){
+      if(kind==='light') tg.HapticFeedback.impactOccurred('light');
+      else if(kind==='medium') tg.HapticFeedback.impactOccurred('medium');
+      else if(kind==='rigid') tg.HapticFeedback.impactOccurred('rigid');
+      else if(kind==='success') tg.HapticFeedback.notificationOccurred('success');
+      else if(kind==='error') tg.HapticFeedback.notificationOccurred('error');
+    }
+  }
+
+  // ---------- STATE ----------
+  var state = {
+    balance: 0,
+    clickPower: 1,
+    perSec: 0,
+    upgrades: {
+      isparik: 0,   // click power
+      pelmeni: 0,   // passive
+      vaz: 0        // multiplier
+    }
+  };
+
+  var UPG = {
+    isparik: {
+      name: "Новый испарик для подика",
+      desc: "Каждая новая спираль — злее тяга. +1 к клику за раз.",
+      icon: "🔥",
+      baseCost: 45,
+      growth: 1.16,
+      effect: function(){ return 1; } // +1 click power per level
+    },
+    pelmeni: {
+      name: "Помочь Сане доесть пельмени",
+      desc: "Брат добрее, когда сыт. +1 руб/сек с его благословения.",
+      icon: "🥟",
+      baseCost: 90,
+      growth: 1.18,
+      effect: function(){ return 1; } // +1 per sec per level
+    },
+    vaz: {
+      name: "Починить ведро ВАЗ 2111",
+      desc: "Заводится с полпинка. Множит весь доход на 12%.",
+      icon: "🚗",
+      baseCost: 400,
+      growth: 1.3,
+      effect: function(){ return 0.12; } // multiplier stack
+    }
+  };
+
+  var RANKS = [
+    {min:0, title:"Пацан с удочкой"},
+    {min:150, title:"Знаток гаражных дел"},
+    {min:800, title:"Испаритель первого разряда"},
+    {min:3000, title:"Гроза местной Пятёрочки"},
+    {min:12000, title:"Легенда речного берега"},
+    {min:50000, title:"Голова гаражного кооператива"},
+    {min:200000, title:"Наследник самого Веника"}
+  ];
+
+  var CLICK_PHRASES = [
+    "Клюёт! Ну, почти клюёт.",
+    "Веник орёт из гаража: «Опять клипсы погнул!»",
+    "Саня переворачивается на другой бок дивана.",
+    "Жижа кончилась — душа плачет.",
+    "На Логане бак пустой, а мечты полные.",
+    "Поймал сапог. Уже пятый за неделю.",
+    "Веник: «Учись у меня, а не у речки».",
+    "Саня доедает твои пельмени. Не в первый раз.",
+    "Клёв сегодня ленивый — прямо как Саня.",
+    "Спалился с подиком за баней. Тихо.",
+    "ВАЗ 2111 завёлся с третьего раза — праздник.",
+    "Веник считает копейки на жижу для тебя.",
+    "Саня: «Мне бы ещё порцию, братан».",
+    "Клюнула банка из-под пива. Улов дня.",
+    "На парковке у Пятёрочки опять не тот Логан.",
+    "Веник моет ведро ВАЗ до скрипа третий час.",
+    "Саня решил встать. Передумал.",
+    "Где-то в гараже Веник точит гаечный ключ.",
+    "Жижа со вкусом «дыня» — контрафакт, но ладно.",
+    "Клюнуло! Опять коряга."
+  ];
+
+  var EVENTS = [
+    {
+      title: "Мент тормозит на Рено Логан",
+      text: "Едешь себе спокойно, а тут мигалка. Инспектор смотрит на подик на панели с подозрением.",
+      choices: [
+        {
+          label: "Откупиться (−40 руб.)",
+          run: function(){
+            var cost = Math.min(40, state.balance);
+            state.balance -= cost;
+            toast("Договорились. Минус " + cost + " руб.");
+            haptic('light');
+          }
+        },
+        {
+          label: "Рвануть по газам",
+          run: function(){
+            if(Math.random() < 0.5){
+              var bonus = Math.round(80 + Math.random()*70);
+              state.balance += bonus;
+              toast("Логан вывез! +" + bonus + " руб. на адреналине.");
+              haptic('success');
+            } else {
+              var loss = Math.min(90, state.balance);
+              state.balance -= loss;
+              toast("Поймали у гаражей. Минус " + loss + " руб.");
+              haptic('error');
+            }
+          }
+        }
+      ]
+    },
+    {
+      title: "Отец Веник спалил с подиком",
+      text: "Веник стоит в проёме гаража и молча смотрит на облако пара. Молчание — плохой знак.",
+      choices: [
+        {
+          label: "Соврать: «Это ингалятор»",
+          run: function(){
+            if(Math.random() < 0.4){
+              toast("Веник поверил. Еле-еле.");
+              haptic('success');
+            } else {
+              var loss = Math.min(60, state.balance);
+              state.balance -= loss;
+              toast("Не поверил. Нотация обошлась в " + loss + " руб.");
+              haptic('error');
+            }
+          }
+        },
+        {
+          label: "Признаться как есть",
+          run: function(){
+            var loss = Math.min(30, state.balance);
+            state.balance -= loss;
+            toast("Короткая, но честная нотация. Минус " + loss + " руб.");
+            haptic('light');
+          }
+        }
+      ]
+    },
+    {
+      title: "Саня просит докупить пельменей",
+      text: "Саня приподнимается с дивана на пол-локтя — для него это почти спорт. Просит долю.",
+      choices: [
+        {
+          label: "Дать денег (−25 руб.)",
+          run: function(){
+            var cost = Math.min(25, state.balance);
+            state.balance -= cost;
+            state.perSec += 0.5;
+            toast("Саня доволен. Пассивный доход подрос.");
+            haptic('light');
+          }
+        },
+        {
+          label: "Отказать",
+          run: function(){
+            state.perSec = Math.max(0, state.perSec - 0.3);
+            toast("Саня обиделся и меньше помогает по дому.");
+            haptic('error');
+          }
+        }
+      ]
+    },
+    {
+      title: "На речке клюёт что-то большое",
+      text: "Леска натянута как струна. Может, сом. Может, чей-то забытый баллон с жижей.",
+      choices: [
+        {
+          label: "Тянуть!",
+          run: function(){
+            var bonus = Math.round(100 + Math.random()*150);
+            state.balance += bonus;
+            toast("Вытащил! +" + bonus + " руб. Улов сомнительный, но ценный.");
+            haptic('success');
+          }
+        },
+        {
+          label: "Отпустить, мало ли",
+          run: function(){
+            toast("Отпустил. Спокойствие дороже.");
+            haptic('light');
+          }
+        }
+      ]
+    },
+    {
+      title: "Кончилась жижа в самый неподходящий момент",
+      text: "Подик пищит и мигает красным. Магазин закрыт. Ситуация критическая.",
+      choices: [
+        {
+          label: "Занять у соседа",
+          run: function(){
+            var loss = Math.min(20, state.balance);
+            state.balance -= loss;
+            toast("Занял «дыню» без вопросов. Минус " + loss + " руб.");
+            haptic('light');
+          }
+        },
+        {
+          label: "Курить «пустой» пар",
+          run: function(){
+            toast("Пар без вкуса. Терпимо. Гордость цела.");
+            haptic('light');
+          }
+        }
+      ]
+    },
+    {
+      title: "Веник затеял ревизию гаража",
+      text: "Отец построил всё содержимое полок по росту и требует объяснить, зачем тебе три запасных клипсы.",
+      choices: [
+        {
+          label: "Сказать «про запас»",
+          run: function(){
+            toast("Веник хмыкнул. Прокатило.");
+            haptic('light');
+          }
+        },
+        {
+          label: "Помочь с ревизией (−15 руб., +опыт)",
+          run: function(){
+            var cost = Math.min(15, state.balance);
+            state.balance -= cost;
+            state.clickPower += 0.2;
+            toast("Веник оценил помощь. Клик чуть сильнее.");
+            haptic('success');
+          }
+        }
+      ]
+    }
+  ];
+
+  // ---------- DOM ----------
+  var balanceEl = document.getElementById('balance');
+  var persecEl = document.getElementById('persec');
+  var rankEl = document.getElementById('rankLabel');
+  var phraseBox = document.getElementById('phraseBox');
+  var avatarBtn = document.getElementById('avatarBtn');
+  var floaters = document.getElementById('floaters');
+  var shopPanel = document.getElementById('tab-shop');
+  var statsPanel = document.getElementById('tab-stats');
+  var tabButtons = document.querySelectorAll('.tab-btn');
+  var modalOverlay = document.getElementById('modalOverlay');
+  var modalTitle = document.getElementById('modalTitle');
+  var modalText = document.getElementById('modalText');
+  var modalActions = document.getElementById('modalActions');
+  var toastEl = document.getElementById('toast');
+
+  function fmt(n){
+    n = Math.floor(n);
+    return n.toString().replace(/\B(?=(\d{3})+(?!\d))/g, " ");
+  }
+
+  function currentRank(){
+    var r = RANKS[0];
+    for(var i=0;i<RANKS.length;i++){
+      if(state.balance >= RANKS[i].min) r = RANKS[i];
+    }
+    return r.title;
+  }
+
+  function upgradeCost(key){
+    var u = UPG[key];
+    var lvl = state.upgrades[key];
+    return Math.round(u.baseCost * Math.pow(u.growth, lvl));
+  }
+
+  function computeMultiplier(){
+    return 1 + state.upgrades.vaz * UPG.vaz.effect();
+  }
+
+  function recalc(){
+    state.clickPower = 1 + state.upgrades.isparik * UPG.isparik.effect() + (state.clickPower % 1 !== 0 ? state.clickPower % 1 : 0);
+  }
+
+  function render(){
+    balanceEl.textContent = fmt(state.balance);
+    var mult = computeMultiplier();
+    var perSecTotal = (state.upgrades.pelmeni * UPG.pelmeni.effect() + state.perSec) * mult;
+    persecEl.textContent = "+" + fmt(perSecTotal) + "/сек";
+    rankEl.textContent = currentRank();
+    renderShop();
+  }
+
+  function renderShop(){
+    var html = "";
+    Object.keys(UPG).forEach(function(key){
+      var u = UPG[key];
+      var lvl = state.upgrades[key];
+      var cost = upgradeCost(key);
+      var afford = state.balance >= cost;
+      html += '<div class="shop-item">' +
+        '<div class="shop-icon">' + u.icon + '</div>' +
+        '<div class="shop-info">' +
+          '<div class="shop-name">' + u.name + '</div>' +
+          '<div class="shop-desc">' + u.desc + '</div>' +
+          '<div class="shop-lvl">Уровень: ' + lvl + '</div>' +
+        '</div>' +
+        '<button class="buy-btn' + (afford ? '' : ' disabled') + '" data-key="' + key + '">' + fmt(cost) + ' ₽</button>' +
+      '</div>';
+    });
+    shopPanel.innerHTML = html;
+  }
+
+  function buy(key){
+    var cost = upgradeCost(key);
+    if(state.balance < cost) { haptic('error'); return; }
+    state.balance -= cost;
+    state.upgrades[key] += 1;
+    recalc();
+    haptic('success');
+    toast(UPG[key].name + " — куплено!");
+    render();
+    save();
+  }
+
+  shopPanel.addEventListener('click', function(e){
+    var btn = e.target.closest('.buy-btn');
+    if(!btn || btn.classList.contains('disabled')) return;
+    buy(btn.getAttribute('data-key'));
+  });
+
+  tabButtons.forEach(function(btn){
+    btn.addEventListener('click', function(){
+      tabButtons.forEach(function(b){ b.classList.remove('active'); });
+      btn.classList.add('active');
+      var tab = btn.getAttribute('data-tab');
+      shopPanel.style.display = tab === 'shop' ? '' : 'none';
+      statsPanel.style.display = tab === 'stats' ? '' : 'none';
+    });
+  });
+
+  // ---------- CLICK ----------
+  function spawnFloat(x, amount){
+    var el = document.createElement('div');
+    el.className = 'float-num';
+    el.textContent = '+' + fmt(amount);
+    el.style.left = (x - 14) + 'px';
+    el.style.top = '20%';
+    floaters.appendChild(el);
+    setTimeout(function(){ el.remove(); }, 900);
+  }
+
+  var phraseIndex = -1;
+  function showPhrase(){
+    var idx;
+    do { idx = Math.floor(Math.random() * CLICK_PHRASES.length); } while(idx === phraseIndex && CLICK_PHRASES.length > 1);
+    phraseIndex = idx;
+    phraseBox.textContent = CLICK_PHRASES[idx];
+  }
+
+  avatarBtn.addEventListener('click', function(ev){
+    var mult = computeMultiplier();
+    var gain = state.clickPower * mult;
+    state.balance += gain;
+
+    avatarBtn.classList.remove('bounce');
+    void avatarBtn.offsetWidth;
+    avatarBtn.classList.add('bounce');
+
+    var rect = avatarBtn.getBoundingClientRect();
+    var wrapRect = floaters.getBoundingClientRect();
+    var x = (rect.left + rect.width/2) - wrapRect.left + (Math.random()*40 - 20);
+    spawnFloat(x, gain);
+
+    if(Math.random() < 0.65) showPhrase();
+    haptic('light');
+
+    render();
+  });
+
+  // ---------- PASSIVE INCOME ----------
+  setInterval(function(){
+    var mult = computeMultiplier();
+    var perSecTotal = (state.upgrades.pelmeni * UPG.pelmeni.effect() + state.perSec) * mult;
+    if(perSecTotal > 0){
+      state.balance += perSecTotal / 10;
+      render();
+    }
+  }, 100);
+
+  // ---------- RANDOM EVENTS ----------
+  var modalOpen = false;
+  function openEvent(){
+    if(modalOpen) return;
+    var ev = EVENTS[Math.floor(Math.random() * EVENTS.length)];
+    modalOpen = true;
+    modalTitle.textContent = ev.title;
+    modalText.textContent = ev.text;
+    modalActions.innerHTML = '';
+    ev.choices.forEach(function(choice, i){
+      var b = document.createElement('button');
+      b.className = 'modal-choice' + (i === 0 ? ' primary' : '');
+      b.textContent = choice.label;
+      b.addEventListener('click', function(){
+        choice.run();
+        closeEvent();
+        render();
+        save();
+      });
+      modalActions.appendChild(b);
+    });
+    modalOverlay.classList.add('show');
+    haptic('medium');
+  }
+  function closeEvent(){
+    modalOverlay.classList.remove('show');
+    modalOpen = false;
+  }
+
+  function scheduleEvent(){
+    var delay = 25000 + Math.random() * 35000; // 25-60s
+    setTimeout(function(){
+      if(state.balance > 20) openEvent();
+      scheduleEvent();
+    }, delay);
+  }
+  scheduleEvent();
+
+  // ---------- TOAST ----------
+  var toastTimer = null;
+  function toast(msg){
+    toastEl.textContent = msg;
+    toastEl.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(function(){ toastEl.classList.remove('show'); }, 2200);
+  }
+
+  // ---------- SAVE / LOAD (Telegram CloudStorage, с фолбэком в память) ----------
+  var SAVE_KEY = 'belan_clicker_save_v1';
+  var memoryFallback = null;
+
+  function save(){
+    var payload = JSON.stringify(state);
+    if(tg && tg.CloudStorage){
+      tg.CloudStorage.setItem(SAVE_KEY, payload, function(){});
+    } else {
+      memoryFallback = payload;
+    }
+  }
+
+  function load(cb){
+    if(tg && tg.CloudStorage){
+      tg.CloudStorage.getItem(SAVE_KEY, function(err, value){
+        if(!err && value){
+          try{
+            var parsed = JSON.parse(value);
+            Object.assign(state, parsed);
+          }catch(e){}
+        }
+        cb();
+      });
+    } else {
+      if(memoryFallback){
+        try{
+          Object.assign(state, JSON.parse(memoryFallback));
+        }catch(e){}
+      }
+      cb();
+    }
+  }
+
+  load(function(){
+    recalc();
+    render();
+  });
+
+  setInterval(save, 8000);
+  window.addEventListener('beforeunload', save);
+
+})();
+</script>
+</body>
+</html>
