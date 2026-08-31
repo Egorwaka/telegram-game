@@ -1,0 +1,833 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>Империя Белана</title>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<style>
+  :root{
+    --bg:#14171c;
+    --bg2:#1c2129;
+    --card:#20262f;
+    --card-line:#2c3440;
+    --red:#d1263a;
+    --green:#3fae56;
+    --gold:#e8b923;
+    --text:#eef1f4;
+    --text-dim:#8b93a1;
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent; user-select:none;}
+  html,body{
+    margin:0; padding:0; height:100%;
+    background:
+      radial-gradient(circle at 15% 0%, #262d38 0%, transparent 45%),
+      radial-gradient(circle at 85% 100%, #241c22 0%, transparent 45%),
+      var(--bg);
+    color:var(--text);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;
+    overflow-x:hidden;
+  }
+  #app{
+    max-width:480px; margin:0 auto;
+    min-height:100vh;
+    display:flex; flex-direction:column;
+    padding:env(safe-area-inset-top,0) 0 env(safe-area-inset-bottom,0) 0;
+  }
+
+  /* ---------- HEADER ---------- */
+  header{
+    padding:14px 16px 10px;
+    position:sticky; top:0; z-index:20;
+    background:linear-gradient(180deg, var(--bg) 60%, transparent);
+  }
+  .brand{
+    display:flex; align-items:center; justify-content:space-between;
+    margin-bottom:10px;
+  }
+  .brand-title{
+    font-size:15px; font-weight:800; letter-spacing:.5px;
+    color:var(--text-dim);
+  }
+  .brand-title b{color:var(--red);}
+  .tabs{display:flex; gap:6px;}
+  .tab-dot{
+    width:7px;height:7px;border-radius:50%;
+    background:var(--card-line);
+  }
+  .tab-dot.active{background:var(--gold);}
+
+  .balance-card{
+    background:linear-gradient(135deg,var(--card) 0%, var(--bg2) 100%);
+    border:1px solid var(--card-line);
+    border-radius:18px;
+    padding:14px 16px;
+    display:flex; justify-content:space-between; align-items:center;
+    box-shadow:0 6px 18px rgba(0,0,0,.35);
+  }
+  .balance-main .label{font-size:11px; color:var(--text-dim); font-weight:600;}
+  .balance-main .value{
+    font-size:26px; font-weight:900; letter-spacing:.3px;
+    display:flex; align-items:baseline; gap:6px;
+  }
+  .balance-main .value span.unit{font-size:15px; color:var(--gold);}
+  .income-side{text-align:right;}
+  .income-side .label{font-size:11px; color:var(--text-dim); font-weight:600;}
+  .income-side .value{font-size:16px; font-weight:800; color:var(--green);}
+
+  .buff-row{
+    display:flex; gap:6px; margin-top:8px; flex-wrap:wrap; min-height:0;
+  }
+  .buff-chip{
+    font-size:11px; font-weight:700; padding:4px 9px; border-radius:20px;
+    display:none; align-items:center; gap:4px;
+  }
+  .buff-chip.good{background:rgba(63,174,86,.15); color:var(--green); border:1px solid rgba(63,174,86,.4);}
+  .buff-chip.bad{background:rgba(209,38,58,.15); color:#ff7a86; border:1px solid rgba(209,38,58,.4);}
+  .buff-chip.show{display:inline-flex;}
+
+  /* ---------- MAIN CLICK ZONE ---------- */
+  main{
+    flex:1;
+    display:flex; flex-direction:column; align-items:center; justify-content:center;
+    padding:6px 16px 10px;
+    position:relative;
+  }
+  .click-wrap{
+    position:relative;
+    width:230px; height:230px;
+    display:flex; align-items:center; justify-content:center;
+  }
+  #clickBtn{
+    width:210px; height:210px; border-radius:50%;
+    border:3px solid var(--card-line);
+    background:
+      radial-gradient(circle at 35% 30%, #2a323e 0%, #171b21 70%);
+    box-shadow:0 10px 0 #0c0e12, 0 14px 30px rgba(0,0,0,.5);
+    display:flex; align-items:center; justify-content:center;
+    font-size:84px;
+    cursor:pointer;
+    transition:transform .06s ease, box-shadow .06s ease;
+    position:relative;
+    z-index:2;
+  }
+  #clickBtn:active{
+    transform:translateY(8px);
+    box-shadow:0 2px 0 #0c0e12, 0 6px 14px rgba(0,0,0,.5);
+  }
+  #clickBtn.pulse{animation:pulseGlow .35s ease;}
+  @keyframes pulseGlow{
+    0%{box-shadow:0 10px 0 #0c0e12, 0 14px 30px rgba(232,185,35,.55);}
+    100%{box-shadow:0 10px 0 #0c0e12, 0 14px 30px rgba(0,0,0,.5);}
+  }
+  .ring{
+    position:absolute; inset:-8px; border-radius:50%;
+    border:2px dashed rgba(232,185,35,.25);
+    animation:spin 18s linear infinite;
+  }
+  @keyframes spin{to{transform:rotate(360deg);}}
+
+  .click-hint{
+    margin-top:16px; font-size:13px; color:var(--text-dim); text-align:center;
+    min-height:34px; line-height:1.4; padding:0 10px;
+  }
+
+  .floater{
+    position:absolute; left:50%; top:20%;
+    transform:translate(-50%,0);
+    font-weight:800; font-size:18px; color:var(--gold);
+    pointer-events:none;
+    animation:floatUp .9s ease-out forwards;
+    z-index:5;
+    text-shadow:0 2px 6px rgba(0,0,0,.6);
+  }
+  @keyframes floatUp{
+    0%{opacity:1; transform:translate(-50%,0) scale(.9);}
+    20%{transform:translate(-50%,-10px) scale(1.1);}
+    100%{opacity:0; transform:translate(calc(-50% + var(--dx,0px)),-90px) scale(1);}
+  }
+
+  /* ---------- NAV ---------- */
+  nav{
+    display:flex;
+    border-top:1px solid var(--card-line);
+    background:var(--bg2);
+    padding:6px 8px calc(6px + env(safe-area-inset-bottom,0));
+    position:sticky; bottom:0; z-index:20;
+  }
+  nav button{
+    flex:1; background:none; border:none; color:var(--text-dim);
+    font-size:12px; font-weight:700; padding:8px 4px;
+    display:flex; flex-direction:column; align-items:center; gap:3px;
+    border-radius:12px;
+  }
+  nav button .ic{font-size:20px;}
+  nav button.active{color:var(--text); background:var(--card);}
+
+  /* ---------- SHOP ---------- */
+  #shopScreen{display:none; flex:1; padding:6px 14px 16px; overflow-y:auto;}
+  #shopScreen.show{display:block;}
+  main.hide{display:none;}
+  .shop-title{
+    font-size:13px; color:var(--text-dim); font-weight:700;
+    margin:14px 2px 8px; text-transform:uppercase; letter-spacing:.6px;
+  }
+  .shop-title:first-child{margin-top:4px;}
+  .upgrade{
+    display:flex; align-items:center; gap:12px;
+    background:var(--card); border:1px solid var(--card-line);
+    border-radius:16px; padding:12px; margin-bottom:10px;
+    text-align:left; width:100%;
+  }
+  .upgrade .emoji{
+    font-size:26px; width:46px; height:46px; flex-shrink:0;
+    display:flex; align-items:center; justify-content:center;
+    background:var(--bg2); border-radius:12px;
+  }
+  .upgrade .info{flex:1; min-width:0;}
+  .upgrade .info .name{font-size:14px; font-weight:800; margin-bottom:2px;}
+  .upgrade .info .desc{font-size:12px; color:var(--text-dim); margin-bottom:4px; line-height:1.3;}
+  .upgrade .info .lvl{font-size:11px; color:var(--green); font-weight:700;}
+  .upgrade .buy{
+    flex-shrink:0; border:none; border-radius:12px;
+    background:var(--gold); color:#1b1503; font-weight:800; font-size:13px;
+    padding:10px 12px; min-width:78px;
+    display:flex; flex-direction:column; align-items:center; gap:2px;
+  }
+  .upgrade .buy small{font-weight:700; font-size:10px; opacity:.75;}
+  .upgrade .buy.disabled{background:var(--card-line); color:var(--text-dim);}
+  .upgrade.flash{animation:flashBuy .4s ease;}
+  @keyframes flashBuy{
+    0%{background:rgba(63,174,86,.25);}
+    100%{background:var(--card);}
+  }
+
+  /* ---------- MODAL ---------- */
+  .overlay{
+    position:fixed; inset:0; background:rgba(8,9,11,.72);
+    display:none; align-items:center; justify-content:center;
+    z-index:50; padding:24px; backdrop-filter:blur(2px);
+  }
+  .overlay.show{display:flex;}
+  .modal{
+    width:100%; max-width:340px;
+    background:var(--card2,#20262f);
+    border:1px solid var(--card-line);
+    border-radius:20px; padding:22px 20px;
+    text-align:center;
+    box-shadow:0 20px 50px rgba(0,0,0,.55);
+    animation:popIn .28s cubic-bezier(.2,1.4,.4,1);
+  }
+  @keyframes popIn{
+    0%{transform:scale(.8); opacity:0;}
+    100%{transform:scale(1); opacity:1;}
+  }
+  .modal .m-emoji{font-size:46px; margin-bottom:8px;}
+  .modal .m-title{font-size:18px; font-weight:900; margin-bottom:8px;}
+  .modal .m-title.bad{color:#ff7a86;}
+  .modal .m-title.good{color:var(--green);}
+  .modal .m-text{font-size:14px; color:var(--text-dim); line-height:1.5; margin-bottom:18px;}
+  .modal button{
+    width:100%; border:none; border-radius:14px; padding:13px;
+    background:var(--gold); color:#1b1503; font-weight:900; font-size:15px;
+  }
+
+  .toast{
+    position:fixed; left:50%; bottom:86px; transform:translateX(-50%);
+    background:var(--card); border:1px solid var(--card-line);
+    padding:10px 16px; border-radius:14px; font-size:13px; font-weight:700;
+    z-index:60; opacity:0; pointer-events:none; transition:opacity .25s, transform .25s;
+    white-space:nowrap; max-width:90vw; overflow:hidden; text-overflow:ellipsis;
+  }
+  .toast.show{opacity:1; transform:translateX(-50%) translateY(-6px);}
+</style>
+</head>
+<body>
+<div id="app">
+
+  <header>
+    <div class="brand">
+      <div class="brand-title">ИМПЕРИЯ <b>БЕЛАНА</b> 🐟</div>
+      <div class="tabs"><span class="tab-dot active" id="dotMain"></span><span class="tab-dot" id="dotShop"></span></div>
+    </div>
+    <div class="balance-card">
+      <div class="balance-main">
+        <div class="label">В ВЕДРЕ</div>
+        <div class="value"><span id="balanceVal">0</span><span class="unit">рыб</span></div>
+      </div>
+      <div class="income-side">
+        <div class="label">В СЕКУНДУ</div>
+        <div class="value">+<span id="incomeVal">0</span></div>
+      </div>
+    </div>
+    <div class="buff-row">
+      <div class="buff-chip good" id="chipSammer">🔥 Толя Саммер играет x2 — <span id="sammerTime">10</span>с</div>
+      <div class="buff-chip bad" id="chipGruzin">😤 Грузин заёбывает — <span id="gruzinTime">30</span>с</div>
+    </div>
+  </header>
+
+  <main id="mainScreen">
+    <div class="click-wrap">
+      <div class="ring"></div>
+      <button id="clickBtn">🎣</button>
+    </div>
+    <div class="click-hint" id="clickHint">Тапай в Белана — он всё равно не поймёт, что происходит</div>
+  </main>
+
+  <div id="shopScreen">
+    <div class="shop-title">За клик</div>
+    <div id="clickUpgrades"></div>
+    <div class="shop-title">Пассивный доход</div>
+    <div id="passiveUpgrades"></div>
+    <div class="shop-title">Общий множитель</div>
+    <div id="multUpgrades"></div>
+  </div>
+
+  <nav>
+    <button class="active" id="navMain"><span class="ic">🎣</span>Клик</button>
+    <button id="navShop"><span class="ic">🛒</span>Магазин</button>
+  </nav>
+</div>
+
+<div class="overlay" id="eventOverlay">
+  <div class="modal">
+    <div class="m-emoji" id="eventEmoji">😳</div>
+    <div class="m-title" id="eventTitle">Событие</div>
+    <div class="m-text" id="eventText">Текст события</div>
+    <button id="eventBtn">Понял, ага</button>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+(function(){
+  "use strict";
+
+  // ---------- Telegram WebApp init ----------
+  try{
+    if (window.Telegram && window.Telegram.WebApp){
+      Telegram.WebApp.ready();
+      Telegram.WebApp.expand();
+      if (Telegram.WebApp.setHeaderColor) { try{Telegram.WebApp.setHeaderColor('#14171c');}catch(e){} }
+      if (Telegram.WebApp.setBackgroundColor) { try{Telegram.WebApp.setBackgroundColor('#14171c');}catch(e){} }
+    }
+  }catch(e){}
+
+  // ---------- Save/Load ----------
+  var SAVE_KEY = 'belanEmpireSave_v1';
+  var MAX_OFFLINE_SECONDS = 12 * 3600; // не начислять доход больше чем за 12ч простоя
+
+  function saveState(){
+    try{
+      var payload = {
+        balance: state.balance,
+        clicksTotal: state.clicksTotal,
+        upgrades: state.upgrades,
+        ts: Date.now()
+      };
+      localStorage.setItem(SAVE_KEY, JSON.stringify(payload));
+    }catch(e){}
+  }
+
+  function loadState(){
+    var raw = null;
+    try{ raw = localStorage.getItem(SAVE_KEY); }catch(e){}
+    if (!raw) return;
+    var saved;
+    try{ saved = JSON.parse(raw); }catch(e){ return; }
+    if (!saved || typeof saved !== 'object') return;
+
+    if (typeof saved.balance === 'number' && isFinite(saved.balance)) state.balance = saved.balance;
+    if (typeof saved.clicksTotal === 'number' && isFinite(saved.clicksTotal)) state.clicksTotal = saved.clicksTotal;
+    if (saved.upgrades){
+      UPGRADES.forEach(function(u){
+        var lvl = saved.upgrades[u.id];
+        if (typeof lvl === 'number' && isFinite(lvl) && lvl >= 0){
+          state.upgrades[u.id] = Math.floor(lvl);
+        }
+      });
+    }
+
+    recalc();
+
+    if (typeof saved.ts === 'number'){
+      var elapsedSec = (Date.now() - saved.ts) / 1000;
+      if (elapsedSec > 3){
+        elapsedSec = Math.min(elapsedSec, MAX_OFFLINE_SECONDS);
+        var perSec = state.perSecond * state.multiplier;
+        var earned = perSec * elapsedSec;
+        if (earned > 0){
+          state.balance += earned;
+          pendingOfflineReport = { seconds: elapsedSec, earned: earned };
+        }
+      }
+    }
+  }
+
+  var pendingOfflineReport = null;
+
+  // ---------- Game state ----------
+  var state = {
+    balance: 0,
+    perClick: 1,
+    perSecond: 0,
+    multiplier: 1,
+    clicksTotal: 0,
+    upgrades: {}
+  };
+
+  var UPGRADES = [
+    {
+      id: 'pasito',
+      group: 'click',
+      emoji: '🚬',
+      name: 'Испарик Pasito II',
+      desc: 'Новая мощность — тяга дольше, клик жирнее',
+      baseCost: 15,
+      growth: 1.16,
+      effect: 1, // +к клику за уровень
+      type: 'click'
+    },
+    {
+      id: 'putyaga',
+      group: 'click',
+      emoji: '📘',
+      name: 'Прогулять пару в путяге',
+      desc: 'Меньше учёбы — больше энергии на клик',
+      baseCost: 60,
+      growth: 1.17,
+      effect: 3,
+      type: 'click'
+    },
+    {
+      id: 'sanya',
+      group: 'passive',
+      emoji: '🍔',
+      name: 'Помочь Сане доесть комбо',
+      desc: 'Толстый брат делится хавкой — доход сам капает',
+      baseCost: 40,
+      growth: 1.15,
+      effect: 1,
+      type: 'passive'
+    },
+    {
+      id: 'pyaterka',
+      group: 'passive',
+      emoji: '🛒',
+      name: 'Спиздить чипсы в Пятёрочке',
+      desc: 'Продавцы не видят, камер нет, совесть выключена',
+      baseCost: 150,
+      growth: 1.18,
+      effect: 4,
+      type: 'passive'
+    },
+    {
+      id: 'smotrящий',
+      group: 'passive',
+      emoji: '📞',
+      name: 'Занять у Вовчика',
+      desc: 'Долг верну... с пенсии',
+      baseCost: 500,
+      growth: 1.2,
+      effect: 12,
+      type: 'passive'
+    },
+    {
+      id: 'vaz',
+      group: 'mult',
+      emoji: '🚗',
+      name: 'Починить ВАЗ 2111 / Логан',
+      desc: 'Тачка на ходу — все доходы Белана растут',
+      baseCost: 300,
+      growth: 1.6,
+      effect: 0.15, // +15% к множителю за уровень
+      type: 'mult'
+    },
+    {
+      id: 'veneg',
+      group: 'mult',
+      emoji: '💿',
+      name: '4К на всю улицу',
+      desc: 'Весь двор слышит моё крутое музло — уважение растёт кратно',
+      baseCost: 900,
+      growth: 1.7,
+      effect: 0.25,
+      type: 'mult'
+    }
+  ];
+
+  UPGRADES.forEach(function(u){ state.upgrades[u.id] = 0; });
+  loadState();
+
+  var CLICK_PHRASES = [
+    'Пшик! Подик не подвёл',
+    'Клюёт, братан!',
+    'Ещё рыбка в сетку',
+    'Затянулся — красота',
+    'Есть щука, есть!',
+    'Чёт я заебался, но клик сделал',
+    'Белан в моменте'
+  ];
+
+  var IDLE_HINTS = [
+    'Тапай в Белана — он всё равно не поймёт, что происходит',
+    'Совет: жижа не заканчивается, если не думать об этом',
+    'Рыбнадзор далеко, а Белан близко',
+    'Клик — дело нехитрое, зато прибыльное'
+  ];
+
+  // ---------- DOM refs ----------
+  var $ = function(id){ return document.getElementById(id); };
+  var balanceVal = $('balanceVal');
+  var incomeVal = $('incomeVal');
+  var clickBtn = $('clickBtn');
+  var clickHint = $('clickHint');
+  var clickUpgradesEl = $('clickUpgrades');
+  var passiveUpgradesEl = $('passiveUpgrades');
+  var multUpgradesEl = $('multUpgrades');
+  var toastEl = $('toast');
+
+  var mainScreen = $('mainScreen');
+  var shopScreen = $('shopScreen');
+  var navMain = $('navMain');
+  var navShop = $('navShop');
+  var dotMain = $('dotMain');
+  var dotShop = $('dotShop');
+
+  // ---------- Helpers ----------
+  function fmt(n){
+    n = Math.floor(n);
+    if (n < 1000) return String(n);
+    if (n < 1000000) return (n/1000).toFixed(n < 10000 ? 2 : 1).replace(/\.0+$/,'') + 'K';
+    if (n < 1000000000) return (n/1000000).toFixed(2).replace(/\.00$/,'') + 'M';
+    return (n/1000000000).toFixed(2) + 'B';
+  }
+
+  function upgradeCost(u){
+    var lvl = state.upgrades[u.id];
+    return Math.ceil(u.baseCost * Math.pow(u.growth, lvl));
+  }
+
+  function recalc(){
+    var perClick = 1, perSecond = 0, mult = 1;
+    UPGRADES.forEach(function(u){
+      var lvl = state.upgrades[u.id];
+      if (u.type === 'click') perClick += u.effect * lvl;
+      if (u.type === 'passive') perSecond += u.effect * lvl;
+      if (u.type === 'mult') mult += u.effect * lvl;
+    });
+    state.perClick = perClick;
+    state.perSecond = perSecond;
+    state.multiplier = mult;
+  }
+
+  function effectivePerClick(){
+    var v = state.perClick * state.multiplier;
+    if (buffs.sammer.active) v *= 2;
+    return v;
+  }
+  function effectivePerSecond(){
+    var v = state.perSecond * state.multiplier;
+    if (buffs.gruzin.active) v *= 0.4;
+    return v;
+  }
+
+  function render(){
+    balanceVal.textContent = fmt(state.balance);
+    incomeVal.textContent = fmt(effectivePerSecond());
+  }
+
+  function toast(msg){
+    toastEl.textContent = msg;
+    toastEl.classList.add('show');
+    clearTimeout(toast._t);
+    toast._t = setTimeout(function(){ toastEl.classList.remove('show'); }, 1600);
+  }
+
+  // ---------- Buffs/debuffs ----------
+  var buffs = {
+    sammer: { active:false, timer:null, left:0 },
+    gruzin: { active:false, timer:null, left:0 }
+  };
+
+  function tickBuffUI(){
+    var chipS = $('chipSammer'), chipG = $('chipGruzin');
+    if (buffs.sammer.active){
+      chipS.classList.add('show');
+      $('sammerTime').textContent = buffs.sammer.left;
+    } else chipS.classList.remove('show');
+    if (buffs.gruzin.active){
+      chipG.classList.add('show');
+      $('gruzinTime').textContent = buffs.gruzin.left;
+    } else chipG.classList.remove('show');
+  }
+
+  function startBuff(key, seconds){
+    var b = buffs[key];
+    clearInterval(b.timer);
+    b.active = true;
+    b.left = seconds;
+    tickBuffUI();
+    b.timer = setInterval(function(){
+      b.left--;
+      if (b.left <= 0){
+        b.active = false;
+        clearInterval(b.timer);
+      }
+      tickBuffUI();
+      render();
+    }, 1000);
+  }
+
+  // ---------- Click ----------
+  var floatLayer = document.querySelector('.click-wrap');
+  var clickIcons = ['🎣','🚬'];
+  var clickIconIdx = 0;
+
+  clickBtn.addEventListener('click', function(ev){
+    var gain = effectivePerClick();
+    state.balance += gain;
+    state.clicksTotal++;
+
+    clickBtn.classList.remove('pulse'); void clickBtn.offsetWidth; clickBtn.classList.add('pulse');
+
+    // toggle icon flavor between fishing/vape every few clicks
+    if (state.clicksTotal % 7 === 0){
+      clickIconIdx = 1 - clickIconIdx;
+      clickBtn.textContent = clickIcons[clickIconIdx];
+    }
+
+    if (state.clicksTotal % 5 === 0){
+      clickHint.textContent = CLICK_PHRASES[Math.floor(Math.random()*CLICK_PHRASES.length)];
+    }
+
+    spawnFloater('+' + fmt(gain));
+
+    try{ if (window.Telegram && Telegram.WebApp && Telegram.WebApp.HapticFeedback) Telegram.WebApp.HapticFeedback.impactOccurred('light'); }catch(e){}
+
+    render();
+    maybeTriggerEvent();
+  }, {passive:true});
+
+  function spawnFloater(text){
+    var f = document.createElement('div');
+    f.className = 'floater';
+    f.textContent = text;
+    f.style.setProperty('--dx', (Math.random()*60-30) + 'px');
+    f.style.left = (46 + Math.random()*8) + '%';
+    floatLayer.appendChild(f);
+    setTimeout(function(){ f.remove(); }, 950);
+  }
+
+  // ---------- Passive income loop ----------
+  setInterval(function(){
+    var gain = effectivePerSecond() / 10;
+    if (gain > 0){
+      state.balance += gain;
+      render();
+    }
+  }, 100);
+
+  // rotate idle hints
+  setInterval(function(){
+    if (Math.random() < 0.4){
+      clickHint.textContent = IDLE_HINTS[Math.floor(Math.random()*IDLE_HINTS.length)];
+    }
+  }, 9000);
+
+  // ---------- Shop rendering ----------
+  function buildUpgradeRow(u){
+    var row = document.createElement('div');
+    row.className = 'upgrade';
+    row.innerHTML =
+      '<div class="emoji">'+u.emoji+'</div>' +
+      '<div class="info">' +
+        '<div class="name">'+u.name+'</div>' +
+        '<div class="desc">'+u.desc+'</div>' +
+        '<div class="lvl">Уровень: <span class="lvl-val">0</span>' +
+          (u.type==='click' ? ' · +'+u.effect+' к клику' : '') +
+          (u.type==='passive' ? ' · +'+u.effect+'/сек' : '') +
+          (u.type==='mult' ? ' · +'+Math.round(u.effect*100)+'% ко всему' : '') +
+        '</div>' +
+      '</div>' +
+      '<button class="buy"><span class="cost">'+fmt(upgradeCost(u))+'</span><small>рыб</small></button>';
+    var buyBtn = row.querySelector('.buy');
+    var lvlSpan = row.querySelector('.lvl-val');
+    var costSpan = row.querySelector('.cost');
+
+    buyBtn.addEventListener('click', function(){
+      var cost = upgradeCost(u);
+      if (state.balance < cost){
+        toast('Рыбы не хватает, братиш');
+        row.classList.remove('flash');
+        return;
+      }
+      state.balance -= cost;
+      state.upgrades[u.id]++;
+      recalc();
+      lvlSpan.textContent = state.upgrades[u.id];
+      costSpan.textContent = fmt(upgradeCost(u));
+      row.classList.remove('flash'); void row.offsetWidth; row.classList.add('flash');
+      render();
+      refreshBuyStates();
+      saveState();
+    });
+
+    row._refresh = function(){
+      var cost = upgradeCost(u);
+      costSpan.textContent = fmt(cost);
+      lvlSpan.textContent = state.upgrades[u.id];
+      if (state.balance < cost) buyBtn.classList.add('disabled');
+      else buyBtn.classList.remove('disabled');
+    };
+
+    return row;
+  }
+
+  var rows = [];
+  UPGRADES.forEach(function(u){
+    var row = buildUpgradeRow(u);
+    rows.push(row);
+    if (u.type === 'click') clickUpgradesEl.appendChild(row);
+    if (u.type === 'passive') passiveUpgradesEl.appendChild(row);
+    if (u.type === 'mult') multUpgradesEl.appendChild(row);
+  });
+
+  function refreshBuyStates(){
+    rows.forEach(function(r){ r._refresh(); });
+  }
+  setInterval(refreshBuyStates, 500);
+
+  // ---------- Navigation ----------
+  function showMain(){
+    mainScreen.classList.remove('hide');
+    shopScreen.classList.remove('show');
+    navMain.classList.add('active');
+    navShop.classList.remove('active');
+    dotMain.classList.add('active');
+    dotShop.classList.remove('active');
+  }
+  function showShop(){
+    mainScreen.classList.add('hide');
+    shopScreen.classList.add('show');
+    navMain.classList.remove('active');
+    navShop.classList.add('active');
+    dotMain.classList.remove('active');
+    dotShop.classList.add('active');
+    refreshBuyStates();
+  }
+  navMain.addEventListener('click', showMain);
+  navShop.addEventListener('click', showShop);
+
+  // ---------- Random events ----------
+  var overlay = $('eventOverlay');
+  var eventEmoji = $('eventEmoji');
+  var eventTitle = $('eventTitle');
+  var eventText = $('eventText');
+  var eventBtn = $('eventBtn');
+
+  function showEvent(emoji, title, text, kind, onClose){
+    eventEmoji.textContent = emoji;
+    eventTitle.textContent = title;
+    eventTitle.className = 'm-title' + (kind ? ' '+kind : '');
+    eventText.textContent = text;
+    overlay.classList.add('show');
+    eventBtn.onclick = function(){
+      overlay.classList.remove('show');
+      if (onClose) onClose();
+    };
+  }
+
+  var EVENTS = [
+    {
+      key: 'venik',
+      weight: 3,
+      run: function(){
+        var fine = Math.max(5, Math.floor(state.balance * (0.1 + Math.random()*0.15)));
+        state.balance = Math.max(0, state.balance - fine);
+        render();
+        showEvent('🥴','Веник спалил!',
+          'Батя учуял подик через три стены. Штраф — '+fmt(fine)+' рыб, и ещё нотация минут на двадцать.',
+          'bad');
+      }
+    },
+    {
+      key: 'gruzin',
+      weight: 3,
+      run: function(){
+        startBuff('gruzin', 30);
+        showEvent('😤','Грузин унижает',
+          'Грузин прошёлся по Белану при всём парке. Доход на 40% просел на 30 секунд — обидно, но заслуженно.',
+          'bad');
+      }
+    },
+    {
+      key: 'sammer',
+      weight: 3,
+      run: function(){
+        startBuff('sammer', 10);
+        showEvent('🎧','Толя Саммер играет!',
+          'Из соседнего окна врубили Толю Саммера. Белана накрыло вдохновением — клик x2 на 10 секунд!',
+          'good');
+      }
+    }
+  ];
+
+  function maybeTriggerEvent(){
+    if (state.clicksTotal < 8) return;
+    if (overlay.classList.contains('show')) return;
+    if (state.clicksTotal % 500 !== 0) return;
+    if (Math.random() > 0.15) return;
+    triggerRandomEvent();
+  }
+
+  function triggerRandomEvent(){
+    var total = EVENTS.reduce(function(s,e){return s+e.weight;},0);
+    var r = Math.random()*total;
+    for (var i=0;i<EVENTS.length;i++){
+      r -= EVENTS[i].weight;
+      if (r <= 0){ EVENTS[i].run(); return; }
+    }
+    EVENTS[0].run();
+  }
+
+  // periodic timer-based event, independent from clicks
+  setInterval(function(){
+    if (overlay.classList.contains('show')) return;
+    if (Math.random() < 0.1) triggerRandomEvent();
+  }, 350000);
+
+  // ---------- Autosave ----------
+  setInterval(saveState, 5000);
+  document.addEventListener('visibilitychange', function(){
+    if (document.visibilityState === 'hidden') saveState();
+  });
+  window.addEventListener('pagehide', saveState);
+  window.addEventListener('beforeunload', saveState);
+  try{
+    if (window.Telegram && Telegram.WebApp && Telegram.WebApp.onEvent){
+      Telegram.WebApp.onEvent('viewportChanged', saveState);
+    }
+  }catch(e){}
+
+  // ---------- Init ----------
+  recalc();
+  render();
+  refreshBuyStates();
+  saveState();
+
+  if (pendingOfflineReport){
+    var rep = pendingOfflineReport;
+    pendingOfflineReport = null;
+    var mins = Math.floor(rep.seconds / 60);
+    var timeText = mins >= 1 ? (mins + ' мин.') : (Math.floor(rep.seconds) + ' сек.');
+    showEvent('🐟','Пока тебя не было',
+      'Белан пахал без тебя ' + timeText + ' и накапал ' + fmt(rep.earned) + ' рыб в ведро.',
+      'good');
+  }
+
+})();
+</script>
+</body>
+</html>
