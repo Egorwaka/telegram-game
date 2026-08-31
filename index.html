@@ -726,8 +726,8 @@
   function maybeTriggerEvent(){
     if (state.clicksTotal < 8) return;
     if (overlay.classList.contains('show')) return;
-    if (state.clicksTotal % 28 !== 0) return;
-    if (Math.random() > 0.65) return;
+    if (state.clicksTotal % 32 !== 0) return;
+    if (Math.random() > 0.8) return;
     triggerRandomEvent();
   }
 
@@ -744,8 +744,8 @@
   // periodic timer-based event, independent from clicks
   setInterval(function(){
     if (overlay.classList.contains('show')) return;
-    if (Math.random() < 0.25) triggerRandomEvent();
-  }, 85000);
+    if (Math.random() < 0.15) triggerRandomEvent();
+  }, 90000);
 
   // ---------- Init ----------
   recalc();
