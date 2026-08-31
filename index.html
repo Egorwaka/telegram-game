@@ -458,7 +458,7 @@
                 <div class="stat-per-sec" id="moneyPerSec">+0/сек</div>
             </div>
             <div class="stat-box">
-                <div class="stat-label">🚭 Уровень подика </div>
+                <div class="stat-label">🚭 Уровень удочки </div>
                 <div class="stat-value" id="level">1</div>
                 <div class="stat-per-sec" id="prestigeInfo">Нечего не сломано</div>
             </div>
@@ -626,28 +626,6 @@
                         addNotification('ТОЛЯ САММЕР! +1 к кликам!');
                     },
                     icon: '🎵',
-                    bought: 0
-                },
-                {
-                    id: 'pyaterochka',
-                    name: '🏪 Воровство в Пятёрочке',
-                    desc: 'Рискованно, но выгодно! +500 одноразово',
-                    price: 0,
-                    cost: 500,
-                    effect: () => {
-                        if (Math.random() > 0.3) {
-                            game.money += 500;
-                            addNotification('Вор в загоне! Украл 500 рыб!');
-                        } else {
-                            showEvent(
-                                '🚨 ПОЙМАЛИ!',
-                                'На выходе охранник остановил тебя! -200 рыб и штраф!',
-                                ['ОК']
-                            );
-                            game.money = Math.max(0, game.money - 200);
-                        }
-                    },
-                    icon: '🏪',
                     bought: 0
                 },
                 {
