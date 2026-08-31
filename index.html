@@ -314,9 +314,58 @@
     }
   }catch(e){}
 
-  // NOTE: состояние хранится в памяти на время сессии.
-  // Для боевого TMA просто добавь сохранение в localStorage/backend —
-  // тут это намеренно не подключено.
+  // ---------- Save/Load ----------
+  var SAVE_KEY = 'belanEmpireSave_v1';
+  var MAX_OFFLINE_SECONDS = 12 * 3600; // не начислять доход больше чем за 12ч простоя
+
+  function saveState(){
+    try{
+      var payload = {
+        balance: state.balance,
+        clicksTotal: state.clicksTotal,
+        upgrades: state.upgrades,
+        ts: Date.now()
+      };
+      localStorage.setItem(SAVE_KEY, JSON.stringify(payload));
+    }catch(e){}
+  }
+
+  function loadState(){
+    var raw = null;
+    try{ raw = localStorage.getItem(SAVE_KEY); }catch(e){}
+    if (!raw) return;
+    var saved;
+    try{ saved = JSON.parse(raw); }catch(e){ return; }
+    if (!saved || typeof saved !== 'object') return;
+
+    if (typeof saved.balance === 'number' && isFinite(saved.balance)) state.balance = saved.balance;
+    if (typeof saved.clicksTotal === 'number' && isFinite(saved.clicksTotal)) state.clicksTotal = saved.clicksTotal;
+    if (saved.upgrades){
+      UPGRADES.forEach(function(u){
+        var lvl = saved.upgrades[u.id];
+        if (typeof lvl === 'number' && isFinite(lvl) && lvl >= 0){
+          state.upgrades[u.id] = Math.floor(lvl);
+        }
+      });
+    }
+
+    recalc();
+
+    if (typeof saved.ts === 'number'){
+      var elapsedSec = (Date.now() - saved.ts) / 1000;
+      if (elapsedSec > 3){
+        elapsedSec = Math.min(elapsedSec, MAX_OFFLINE_SECONDS);
+        var perSec = state.perSecond * state.multiplier;
+        var earned = perSec * elapsedSec;
+        if (earned > 0){
+          state.balance += earned;
+          pendingOfflineReport = { seconds: elapsedSec, earned: earned };
+        }
+      }
+    }
+  }
+
+  var pendingOfflineReport = null;
 
   // ---------- Game state ----------
   var state = {
@@ -409,52 +458,8 @@
   ];
 
   UPGRADES.forEach(function(u){ state.upgrades[u.id] = 0; });
+  loadState();
 
-  // === СЮДА ВСТАВЛЯЕМ СОХРАНЕНИЕ И ЗАГРУЗКУ ===
-  var SAVE_KEY = "belan_empire_save_v1";
-
-  function saveGame() {
-    var saveData = {
-      balance: state.balance,
-      clicksTotal: state.clicksTotal,
-      upgrades: state.upgrades,
-      lastTime: Date.now()
-    };
-    localStorage.setItem(SAVE_KEY, JSON.stringify(saveData));
-  }
-
-  function loadGame() {
-    var saved = localStorage.getItem(SAVE_KEY);
-    if (!saved) return;
-    try {
-      var data = JSON.parse(saved);
-      if (data.balance !== undefined) state.balance = data.balance;
-      if (data.clicksTotal !== undefined) state.clicksTotal = data.clicksTotal;
-      if (data.upgrades) {
-        for (var id in data.upgrades) {
-          if (state.upgrades.hasOwnProperty(id)) {
-            state.upgrades[id] = data.upgrades[id];
-          }
-        }
-      }
-
-      if (data.lastTime) {
-        var deltaSeconds = (Date.now() - data.lastTime) / 1000;
-        if (deltaSeconds > 3 && state.perSecond > 0) {
-          var offlineGain = state.perSecond * state.multiplier * Math.min(deltaSeconds, 86400);
-          if (offlineGain > 0) {
-            state.balance += offlineGain;
-            setTimeout(function() {
-              toast('Пока вас не было, накапало: ' + fmt(offlineGain) + ' рыб 🐟');
-            }, 800);
-          }
-        }
-      }
-    } catch(e) {
-      console.error("Ошибка при загрузке сохранения:", e);
-    }
-  }
-  // ===========================================
   var CLICK_PHRASES = [
     'Пшик! Подик не подвёл',
     'Клюёт, братан!',
@@ -631,19 +636,6 @@
     }
   }, 9000);
 
-  // === СЮДА ВСТАВЛЯЕМ АВТОСОХРАНЕНИЕ И СОБЫТИЯ ВЫХОДА ===
-  // Автосохранение каждые 10 секунд
-  setInterval(function(){
-    saveGame();
-  }, 10000);
-
-  // Сохранение при закрытии вкладки или сворачивании Telegram Mini App
-  window.addEventListener('beforeunload', saveGame);
-  document.addEventListener('visibilitychange', function() {
-    if (document.hidden) {
-      saveGame();
-    }
-  });
   // ---------- Shop rendering ----------
   function buildUpgradeRow(u){
     var row = document.createElement('div');
@@ -674,12 +666,12 @@
       state.balance -= cost;
       state.upgrades[u.id]++;
       recalc();
-      saveGame(); // <--- СЮДА ДОБАВЛЯЕМ СОХРАНЕНИЕ ПРИ ПОКУПКЕ
       lvlSpan.textContent = state.upgrades[u.id];
       costSpan.textContent = fmt(upgradeCost(u));
       row.classList.remove('flash'); void row.offsetWidth; row.classList.add('flash');
       render();
       refreshBuyStates();
+      saveState();
     });
 
     row._refresh = function(){
@@ -806,11 +798,34 @@
     if (Math.random() < 0.1) triggerRandomEvent();
   }, 350000);
 
+  // ---------- Autosave ----------
+  setInterval(saveState, 5000);
+  document.addEventListener('visibilitychange', function(){
+    if (document.visibilityState === 'hidden') saveState();
+  });
+  window.addEventListener('pagehide', saveState);
+  window.addEventListener('beforeunload', saveState);
+  try{
+    if (window.Telegram && Telegram.WebApp && Telegram.WebApp.onEvent){
+      Telegram.WebApp.onEvent('viewportChanged', saveState);
+    }
+  }catch(e){}
+
   // ---------- Init ----------
-  loadGame(); // <--- СЮДА ДОБАВЛЯЕМ ЗАГРУЗКУ ПРИ СТАРТЕ
   recalc();
   render();
   refreshBuyStates();
+  saveState();
+
+  if (pendingOfflineReport){
+    var rep = pendingOfflineReport;
+    pendingOfflineReport = null;
+    var mins = Math.floor(rep.seconds / 60);
+    var timeText = mins >= 1 ? (mins + ' мин.') : (Math.floor(rep.seconds) + ' сек.');
+    showEvent('🐟','Пока тебя не было',
+      'Белан пахал без тебя ' + timeText + ' и накапал ' + fmt(rep.earned) + ' рыб в ведро.',
+      'good');
+  }
 
 })();
 </script>
