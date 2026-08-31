@@ -5,6 +5,9 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <title>Империя Белана</title>
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
+<!-- Firebase SDK -->
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
 <style>
   :root{
     --bg:#14171c;
@@ -164,10 +167,11 @@
   nav button .ic{font-size:20px;}
   nav button.active{color:var(--text); background:var(--card);}
 
-  /* ---------- SHOP ---------- */
-  #shopScreen{display:none; flex:1; padding:6px 14px 16px; overflow-y:auto;}
-  #shopScreen.show{display:block;}
+  /* ---------- SHOP & TOP ---------- */
+  #shopScreen, #topScreen{display:none; flex:1; padding:6px 14px 16px; overflow-y:auto;}
+  #shopScreen.show, #topScreen.show{display:block;}
   main.hide{display:none;}
+  
   .shop-title{
     font-size:13px; color:var(--text-dim); font-weight:700;
     margin:14px 2px 8px; text-transform:uppercase; letter-spacing:.6px;
@@ -248,7 +252,11 @@
   <header>
     <div class="brand">
       <div class="brand-title">ИМПЕРИЯ <b>БЕЛАНА</b> 🐟</div>
-      <div class="tabs"><span class="tab-dot active" id="dotMain"></span><span class="tab-dot" id="dotShop"></span></div>
+      <div class="tabs">
+        <span class="tab-dot active" id="dotMain"></span>
+        <span class="tab-dot" id="dotShop"></span>
+        <span class="tab-dot" id="dotTop"></span>
+      </div>
     </div>
     <div class="balance-card">
       <div class="balance-main">
@@ -283,9 +291,17 @@
     <div id="multUpgrades"></div>
   </div>
 
+  <div id="topScreen">
+    <div class="shop-title">Топ рыбаков империи</div>
+    <div id="leaderboardList" style="display:flex; flex-direction:column; gap:8px; margin-top:10px;">
+      <div style="color:var(--text-dim); text-align:center; padding:20px;">Загрузка топа...</div>
+    </div>
+  </div>
+
   <nav>
     <button class="active" id="navMain"><span class="ic">🎣</span>Клик</button>
     <button id="navShop"><span class="ic">🛒</span>Магазин</button>
+    <button id="navTop"><span class="ic">🏆</span>Топ</button>
   </nav>
 </div>
 
@@ -304,6 +320,68 @@
 (function(){
   "use strict";
 
+  // ---------- Firebase Init ----------
+  var firebaseConfig = {
+    apiKey: "AIzaSyA-a0tpWiJZsZOXWKPncwLyVkTXm2y19jY",
+    authDomain: "belan-empire.firebaseapp.com",
+    projectId: "belan-empire",
+    storageBucket: "belan-empire.firebasestorage.app",
+    messagingSenderId: "415207689720",
+    appId: "1:415207689720:web:d1ab2cffe07bdcb8a91a0d"
+  };
+  
+  firebase.initializeApp(firebaseConfig);
+  var db = firebase.firestore();
+
+  // Telegram User info
+  var tgUser = window.Telegram && window.Telegram.WebApp && window.Telegram.WebApp.initDataUnsafe && window.Telegram.WebApp.initDataUnsafe.user;
+  var userId = tgUser ? String(tgUser.id) : 'player_' + Math.floor(Math.random() * 10000);
+  var userName = tgUser ? (tgUser.first_name || 'Белан') : 'Брат с улицы';
+
+  function saveScoreToCloud() {
+    db.collection("leaderboard").doc(userId).set({
+      name: userName,
+      balance: state.balance,
+      updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+    }).catch(function(e){});
+  }
+
+  function loadLeaderboard() {
+    var listEl = $('leaderboardList');
+    listEl.innerHTML = '<div style="color:var(--text-dim); text-align:center; padding:20px;">Загрузка топа...</div>';
+    
+    db.collection("leaderboard")
+      .orderBy("balance", "desc")
+      .limit(10)
+      .get()
+      .then(function(querySnapshot) {
+        listEl.innerHTML = '';
+        if(querySnapshot.empty) {
+          listEl.innerHTML = '<div style="color:var(--text-dim); text-align:center; padding:20px;">Пока пусто</div>';
+          return;
+        }
+        var rank = 1;
+        querySnapshot.forEach(function(doc) {
+          var data = doc.data();
+          var row = document.createElement('div');
+          row.className = 'upgrade';
+          row.style.display = 'flex';
+          row.style.alignItems = 'center';
+          row.style.justifyContent = 'space-between';
+          row.style.padding = '10px 14px';
+          row.style.marginBottom = '6px';
+          
+          var placeIcon = rank === 1 ? '👑' : (rank === 2 ? '🥈' : (rank === 3 ? '🥉' : rank + '.'));
+          row.innerHTML = '<div style="display:flex; align-items:center; gap:10px;"><span style="font-weight:800; width:22px;">'+placeIcon+'</span><span style="font-weight:700;">'+data.name+'</span></div><div style="font-weight:800; color:var(--gold);">'+fmt(data.balance)+' рыб</div>';
+          listEl.appendChild(row);
+          rank++;
+        });
+      })
+      .catch(function(err) {
+        listEl.innerHTML = '<div style="color:var(--red); text-align:center; padding:20px;">Ошибка загрузки топа</div>';
+      });
+  }
+
   // ---------- Telegram WebApp init ----------
   try{
     if (window.Telegram && window.Telegram.WebApp){
@@ -316,7 +394,7 @@
 
   // ---------- Save/Load ----------
   var SAVE_KEY = 'belanEmpireSave_v1';
-  var MAX_OFFLINE_SECONDS = 12 * 3600; // не начислять доход больше чем за 12ч простоя
+  var MAX_OFFLINE_SECONDS = 12 * 3600;
 
   function saveState(){
     try{
@@ -327,6 +405,7 @@
         ts: Date.now()
       };
       localStorage.setItem(SAVE_KEY, JSON.stringify(payload));
+      saveScoreToCloud(); // Отправляем в облако Firebase
     }catch(e){}
   }
 
@@ -378,96 +457,21 @@
   };
 
   var UPGRADES = [
-    {
-      id: 'pasito',
-      group: 'click',
-      emoji: '🚬',
-      name: 'Испарик Pasito II',
-      desc: 'Новая мощность — тяга дольше, клик жирнее',
-      baseCost: 15,
-      growth: 1.16,
-      effect: 1, // +к клику за уровень
-      type: 'click'
-    },
-    {
-      id: 'putyaga',
-      group: 'click',
-      emoji: '📘',
-      name: 'Прогулять пару в путяге',
-      desc: 'Меньше учёбы — больше энергии на клик',
-      baseCost: 60,
-      growth: 1.17,
-      effect: 3,
-      type: 'click'
-    },
-    {
-      id: 'sanya',
-      group: 'passive',
-      emoji: '🍔',
-      name: 'Помочь Сане доесть комбо',
-      desc: 'Толстый брат делится хавкой — доход сам капает',
-      baseCost: 40,
-      growth: 1.15,
-      effect: 1,
-      type: 'passive'
-    },
-    {
-      id: 'pyaterka',
-      group: 'passive',
-      emoji: '🛒',
-      name: 'Спиздить чипсы в Пятёрочке',
-      desc: 'Продавцы не видят, камер нет, совесть выключена',
-      baseCost: 150,
-      growth: 1.18,
-      effect: 4,
-      type: 'passive'
-    },
-    {
-      id: 'smotrящий',
-      group: 'passive',
-      emoji: '📞',
-      name: 'Занять у Вовчика',
-      desc: 'Долг верну... с пенсии',
-      baseCost: 500,
-      growth: 1.2,
-      effect: 12,
-      type: 'passive'
-    },
-    {
-      id: 'vaz',
-      group: 'mult',
-      emoji: '🚗',
-      name: 'Починить ВАЗ 2111 / Логан',
-      desc: 'Тачка на ходу — все доходы Белана растут',
-      baseCost: 300,
-      growth: 1.6,
-      effect: 0.15, // +15% к множителю за уровень
-      type: 'mult'
-    },
-    {
-      id: 'veneg',
-      group: 'mult',
-      emoji: '💿',
-      name: '4К на всю улицу',
-      desc: 'Весь двор слышит моё крутое музло — уважение растёт кратно',
-      baseCost: 900,
-      growth: 1.7,
-      effect: 0.25,
-      type: 'mult'
-    }
+    { id: 'pasito', group: 'click', emoji: '🚬', name: 'Испарик Pasito II', desc: 'Новая мощность — тяга дольше, клик жирнее', baseCost: 15, growth: 1.16, effect: 1, type: 'click' },
+    { id: 'putyaga', group: 'click', emoji: '📘', name: 'Прогулять пару в путяге', desc: 'Меньше учёбы — больше энергии на клик', baseCost: 60, growth: 1.17, effect: 3, type: 'click' },
+    { id: 'sanya', group: 'passive', emoji: '🍔', name: 'Помочь Сане доесть комбо', desc: 'Толстый брат делится хавкой — доход сам капает', baseCost: 40, growth: 1.15, effect: 1, type: 'passive' },
+    { id: 'pyaterka', group: 'passive', emoji: '🛒', name: 'Спиздить чипсы в Пятёрочке', desc: 'Продавцы не видят, камер нет, совесть выключена', baseCost: 150, growth: 1.18, effect: 4, type: 'passive' },
+    { id: 'smotrящий', group: 'passive', emoji: '📞', name: 'Занять у Вовчика', desc: 'Долг верну... с пенсии', baseCost: 500, growth: 1.2, effect: 12, type: 'passive' },
+    { id: 'vaz', group: 'mult', emoji: '🚗', name: 'Починить ВАЗ 2111 / Логан', desc: 'Тачка на ходу — все доходы Белана растут', baseCost: 300, growth: 1.6, effect: 0.15, type: 'mult' },
+    { id: 'veneg', group: 'mult', emoji: '💿', name: '4К на всю улицу', desc: 'Весь двор слышит моё крутое музло — уважение растёт кратно', baseCost: 900, growth: 1.7, effect: 0.25, type: 'mult' }
   ];
 
   UPGRADES.forEach(function(u){ state.upgrades[u.id] = 0; });
   loadState();
 
   var CLICK_PHRASES = [
-    'Пшик! Подик не подвёл',
-    'Клюёт, братан!',
-    'Ещё рыбка в сетку',
-    'Затянулся — красота',
-    'Есть щука, есть!',
-    'Чёт я заебался, но клик сделал',
-    'Белан в моменте'
+    'Пшик! Подик не подвёл', 'Клюёт, братан!', 'Ещё рыбка в сетку',
+    'Затянулся — красота', 'Есть щука, есть!', 'Чёт я заебался, но клик сделал', 'Белан в моменте'
   ];
 
   var IDLE_HINTS = [
@@ -490,10 +494,15 @@
 
   var mainScreen = $('mainScreen');
   var shopScreen = $('shopScreen');
+  var topScreen = $('topScreen');
+  
   var navMain = $('navMain');
   var navShop = $('navShop');
+  var navTop = $('navTop');
+  
   var dotMain = $('dotMain');
   var dotShop = $('dotShop');
+  var dotTop = $('dotTop');
 
   // ---------- Helpers ----------
   function fmt(n){
@@ -592,7 +601,6 @@
 
     clickBtn.classList.remove('pulse'); void clickBtn.offsetWidth; clickBtn.classList.add('pulse');
 
-    // toggle icon flavor between fishing/vape every few clicks
     if (state.clicksTotal % 7 === 0){
       clickIconIdx = 1 - clickIconIdx;
       clickBtn.textContent = clickIcons[clickIconIdx];
@@ -629,7 +637,6 @@
     }
   }, 100);
 
-  // rotate idle hints
   setInterval(function(){
     if (Math.random() < 0.4){
       clickHint.textContent = IDLE_HINTS[Math.floor(Math.random()*IDLE_HINTS.length)];
@@ -703,22 +710,49 @@
   function showMain(){
     mainScreen.classList.remove('hide');
     shopScreen.classList.remove('show');
+    topScreen.classList.remove('show');
+    
     navMain.classList.add('active');
     navShop.classList.remove('active');
+    navTop.classList.remove('active');
+    
     dotMain.classList.add('active');
     dotShop.classList.remove('active');
+    dotTop.classList.remove('active');
   }
   function showShop(){
     mainScreen.classList.add('hide');
     shopScreen.classList.add('show');
+    topScreen.classList.remove('show');
+    
     navMain.classList.remove('active');
     navShop.classList.add('active');
+    navTop.classList.remove('active');
+    
     dotMain.classList.remove('active');
     dotShop.classList.add('active');
+    dotTop.classList.remove('active');
     refreshBuyStates();
   }
+  function showTop(){
+    mainScreen.classList.add('hide');
+    shopScreen.classList.remove('show');
+    topScreen.classList.add('show');
+    
+    navMain.classList.remove('active');
+    navShop.classList.remove('active');
+    navTop.classList.add('active');
+    
+    dotMain.classList.remove('active');
+    dotShop.classList.remove('active');
+    dotTop.classList.add('active');
+    
+    loadLeaderboard(); // Загружаем топ при переходе
+  }
+
   navMain.addEventListener('click', showMain);
   navShop.addEventListener('click', showShop);
+  navTop.addEventListener('click', showTop);
 
   // ---------- Random events ----------
   var overlay = $('eventOverlay');
@@ -741,35 +775,26 @@
 
   var EVENTS = [
     {
-      key: 'venik',
-      weight: 3,
+      key: 'venik', weight: 3,
       run: function(){
         var fine = Math.max(5, Math.floor(state.balance * (0.1 + Math.random()*0.15)));
         state.balance = Math.max(0, state.balance - fine);
         render();
-        showEvent('🥴','Веник спалил!',
-          'Батя учуял подик через три стены. Штраф — '+fmt(fine)+' рыб, и ещё нотация минут на двадцать.',
-          'bad');
+        showEvent('🥴','Веник спалил!', 'Батя учуял подик через три стены. Штраф — '+fmt(fine)+' рыб, и ещё нотация минут на двадцать.', 'bad');
       }
     },
     {
-      key: 'gruzin',
-      weight: 3,
+      key: 'gruzin', weight: 3,
       run: function(){
         startBuff('gruzin', 30);
-        showEvent('😤','Грузин унижает',
-          'Грузин прошёлся по Белану при всём парке. Доход на 40% просел на 30 секунд — обидно, но заслуженно.',
-          'bad');
+        showEvent('😤','Грузин унижает', 'Грузин прошёлся по Белану при всём парке. Доход на 40% просел на 30 секунд — обидно, но заслуженно.', 'bad');
       }
     },
     {
-      key: 'sammer',
-      weight: 3,
+      key: 'sammer', weight: 3,
       run: function(){
         startBuff('sammer', 10);
-        showEvent('🎧','Толя Саммер играет!',
-          'Из соседнего окна врубили Толю Саммера. Белана накрыло вдохновением — клик x2 на 10 секунд!',
-          'good');
+        showEvent('🎧','Толя Саммер играет!', 'Из соседнего окна врубили Толю Саммера. Белана накрыло вдохновением — клик x2 на 10 секунд!', 'good');
       }
     }
   ];
@@ -792,24 +817,18 @@
     EVENTS[0].run();
   }
 
-  // periodic timer-based event, independent from clicks
   setInterval(function(){
     if (overlay.classList.contains('show')) return;
     if (Math.random() < 0.1) triggerRandomEvent();
   }, 350000);
 
-  // ---------- Autosave ----------
+  // ---------- Autosave & Sync ----------
   setInterval(saveState, 5000);
   document.addEventListener('visibilitychange', function(){
     if (document.visibilityState === 'hidden') saveState();
   });
   window.addEventListener('pagehide', saveState);
   window.addEventListener('beforeunload', saveState);
-  try{
-    if (window.Telegram && Telegram.WebApp && Telegram.WebApp.onEvent){
-      Telegram.WebApp.onEvent('viewportChanged', saveState);
-    }
-  }catch(e){}
 
   // ---------- Init ----------
   recalc();
@@ -822,9 +841,7 @@
     pendingOfflineReport = null;
     var mins = Math.floor(rep.seconds / 60);
     var timeText = mins >= 1 ? (mins + ' мин.') : (Math.floor(rep.seconds) + ' сек.');
-    showEvent('🐟','Пока тебя не было',
-      'Белан пахал без тебя ' + timeText + ' и накапал ' + fmt(rep.earned) + ' рыб в ведро.',
-      'good');
+    showEvent('🐟','Пока тебя не было', 'Белан пахал без тебя ' + timeText + ' и накапал ' + fmt(rep.earned) + ' рыб в ведро.', 'good');
   }
 
 })();
