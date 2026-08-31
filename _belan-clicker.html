@@ -1,0 +1,1063 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Беланская Империя - Кликер</title>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Arial', sans-serif;
+            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+            color: #fff;
+            overflow-x: hidden;
+            min-height: 100vh;
+            padding-bottom: 20px;
+        }
+
+        .container {
+            max-width: 100%;
+            padding: 10px;
+        }
+
+        /* Шапка */
+        .header {
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 15px;
+            padding: 15px;
+            margin-bottom: 15px;
+            text-align: center;
+            border: 2px solid #ffd700;
+        }
+
+        .header h1 {
+            font-size: 24px;
+            font-weight: bold;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.8);
+        }
+
+        .header p {
+            font-size: 12px;
+            opacity: 0.9;
+            font-style: italic;
+        }
+
+        /* Статистика */
+        .stats {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+
+        .stat-box {
+            background: rgba(0, 0, 0, 0.2);
+            border: 2px solid #ff6b6b;
+            border-radius: 10px;
+            padding: 12px;
+            text-align: center;
+        }
+
+        .stat-label {
+            font-size: 11px;
+            opacity: 0.8;
+            text-transform: uppercase;
+            margin-bottom: 5px;
+        }
+
+        .stat-value {
+            font-size: 22px;
+            font-weight: bold;
+            color: #ffd700;
+        }
+
+        .stat-per-sec {
+            font-size: 10px;
+            opacity: 0.7;
+            margin-top: 3px;
+        }
+
+        /* Главный клик */
+        .click-area {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin: 20px 0;
+            perspective: 1000px;
+        }
+
+        .click-button {
+            width: 150px;
+            height: 150px;
+            border: 4px solid #ffd700;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #ff6b6b 0%, #ee5a6f 100%);
+            cursor: pointer;
+            font-size: 60px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            transition: transform 0.1s;
+            box-shadow: 0 8px 16px rgba(0, 0, 0, 0.5), inset 0 2px 5px rgba(255, 255, 255, 0.2);
+            user-select: none;
+            position: relative;
+        }
+
+        .click-button:active {
+            transform: scale(0.95);
+        }
+
+        .click-button:hover {
+            transform: scale(1.05);
+        }
+
+        .float-text {
+            position: fixed;
+            font-weight: bold;
+            pointer-events: none;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.8);
+            animation: floatUp 1s ease-out forwards;
+            font-size: 24px;
+            z-index: 1000;
+        }
+
+        @keyframes floatUp {
+            0% {
+                opacity: 1;
+                transform: translateY(0) scale(1);
+            }
+            100% {
+                opacity: 0;
+                transform: translateY(-60px) scale(0.8);
+            }
+        }
+
+        /* Табы */
+        .tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
+            border-bottom: 2px solid rgba(255, 255, 255, 0.2);
+            overflow-x: auto;
+        }
+
+        .tab {
+            flex-shrink: 0;
+            padding: 10px 15px;
+            background: rgba(0, 0, 0, 0.2);
+            border: none;
+            color: #fff;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: bold;
+            border-radius: 10px 10px 0 0;
+            transition: all 0.3s;
+        }
+
+        .tab.active {
+            background: rgba(255, 107, 107, 0.5);
+            border: 2px solid #ffd700;
+            border-bottom: none;
+        }
+
+        /* Контент табов */
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        /* Магазин */
+        .shop-grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 10px;
+        }
+
+        .shop-item {
+            background: rgba(0, 0, 0, 0.3);
+            border: 2px solid #4ecdc4;
+            border-radius: 10px;
+            padding: 15px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            transition: all 0.3s;
+        }
+
+        .shop-item:hover {
+            background: rgba(0, 0, 0, 0.4);
+            transform: translateX(5px);
+        }
+
+        .shop-item.disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .shop-info {
+            flex: 1;
+        }
+
+        .shop-name {
+            font-weight: bold;
+            font-size: 14px;
+            margin-bottom: 5px;
+        }
+
+        .shop-desc {
+            font-size: 11px;
+            opacity: 0.8;
+        }
+
+        .shop-price {
+            font-size: 12px;
+            color: #ffd700;
+            margin-top: 5px;
+            font-weight: bold;
+        }
+
+        .shop-button {
+            background: linear-gradient(135deg, #4ecdc4 0%, #44a5a2 100%);
+            border: none;
+            color: #fff;
+            padding: 10px 15px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: bold;
+            font-size: 12px;
+            transition: all 0.3s;
+            margin-left: 10px;
+            white-space: nowrap;
+            flex-shrink: 0;
+        }
+
+        .shop-button:hover:not(:disabled) {
+            transform: scale(1.05);
+            background: linear-gradient(135deg, #5ae8d8 0%, #50b1ad 100%);
+        }
+
+        .shop-button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        /* Достижения */
+        .achievements-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+        }
+
+        .achievement {
+            background: rgba(0, 0, 0, 0.3);
+            border: 2px solid #95e1d3;
+            border-radius: 10px;
+            padding: 15px;
+            text-align: center;
+            transition: all 0.3s;
+        }
+
+        .achievement.locked {
+            opacity: 0.4;
+            border-color: #666;
+        }
+
+        .achievement.unlocked {
+            background: rgba(149, 225, 211, 0.2);
+        }
+
+        .achievement-icon {
+            font-size: 32px;
+            margin-bottom: 8px;
+        }
+
+        .achievement-name {
+            font-weight: bold;
+            font-size: 12px;
+            margin-bottom: 5px;
+        }
+
+        .achievement-desc {
+            font-size: 10px;
+            opacity: 0.8;
+        }
+
+        /* Модальные окна */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.7);
+            z-index: 2000;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .modal.active {
+            display: flex;
+        }
+
+        .modal-content {
+            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+            border: 3px solid #ffd700;
+            border-radius: 20px;
+            padding: 25px;
+            max-width: 90%;
+            text-align: center;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.7);
+            animation: popIn 0.3s ease-out;
+        }
+
+        @keyframes popIn {
+            0% {
+                transform: scale(0.5);
+                opacity: 0;
+            }
+            100% {
+                transform: scale(1);
+                opacity: 1;
+            }
+        }
+
+        .modal-title {
+            font-size: 24px;
+            font-weight: bold;
+            margin-bottom: 15px;
+            color: #ffd700;
+        }
+
+        .modal-text {
+            font-size: 16px;
+            margin-bottom: 20px;
+            line-height: 1.5;
+        }
+
+        .modal-buttons {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+
+        .modal-btn {
+            background: linear-gradient(135deg, #ff6b6b 0%, #ee5a6f 100%);
+            border: 2px solid #ffd700;
+            color: #fff;
+            padding: 12px 20px;
+            border-radius: 10px;
+            cursor: pointer;
+            font-weight: bold;
+            font-size: 14px;
+            transition: all 0.3s;
+        }
+
+        .modal-btn:hover {
+            transform: scale(1.05);
+        }
+
+        .modal-btn.cancel {
+            background: rgba(0, 0, 0, 0.3);
+            border-color: #888;
+        }
+
+        /* Информационная панель */
+        .info-panel {
+            background: rgba(0, 0, 0, 0.3);
+            border: 2px solid #95e1d3;
+            border-radius: 10px;
+            padding: 15px;
+            margin-bottom: 15px;
+            font-size: 12px;
+            line-height: 1.6;
+        }
+
+        .info-panel h3 {
+            color: #ffd700;
+            margin-bottom: 10px;
+            font-size: 14px;
+        }
+
+        /* Уведомления */
+        .notification {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: rgba(76, 205, 196, 0.9);
+            border: 2px solid #ffd700;
+            border-radius: 10px;
+            padding: 15px;
+            color: #fff;
+            font-weight: bold;
+            z-index: 3000;
+            animation: slideIn 0.3s ease-out;
+            max-width: 200px;
+        }
+
+        @keyframes slideIn {
+            from {
+                transform: translateX(300px);
+            }
+            to {
+                transform: translateX(0);
+            }
+        }
+
+        /* Версия */
+        .version {
+            text-align: center;
+            font-size: 10px;
+            opacity: 0.6;
+            margin-top: 10px;
+        }
+
+        /* Адаптивность */
+        @media (max-width: 480px) {
+            .header h1 {
+                font-size: 18px;
+            }
+
+            .click-button {
+                width: 120px;
+                height: 120px;
+                font-size: 50px;
+            }
+
+            .stat-value {
+                font-size: 18px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Шапка -->
+        <div class="header">
+            <h1>🎣 БЕЛАНСКАЯ ИМПЕРИЯ 🎣</h1>
+            <p>Клейтер про гнилую рыбу и электронные сигареты</p>
+        </div>
+
+        <!-- Статистика -->
+        <div class="stats">
+            <div class="stat-box">
+                <div class="stat-label">💰 Рыба</div>
+                <div class="stat-value" id="money">0</div>
+                <div class="stat-per-sec" id="moneyPerSec">+0/сек</div>
+            </div>
+            <div class="stat-box">
+                <div class="stat-label">🚭 Уровень Кейфа</div>
+                <div class="stat-value" id="level">1</div>
+                <div class="stat-per-sec" id="prestigeInfo">Нечего не сломано</div>
+            </div>
+        </div>
+
+        <!-- Главная кнопка -->
+        <div class="click-area">
+            <button class="click-button" id="clickBtn">🎣</button>
+        </div>
+
+        <!-- Табы -->
+        <div class="tabs">
+            <button class="tab active" data-tab="shop">🛍️ Магазин</button>
+            <button class="tab" data-tab="achievements">🏆 Достижения</button>
+            <button class="tab" data-tab="info">ℹ️ Инфо</button>
+        </div>
+
+        <!-- Магазин -->
+        <div class="tab-content active" id="shop">
+            <div class="shop-grid" id="shopGrid"></div>
+        </div>
+
+        <!-- Достижения -->
+        <div class="tab-content" id="achievements">
+            <div class="achievements-grid" id="achievementsGrid"></div>
+        </div>
+
+        <!-- Информация -->
+        <div class="tab-content" id="info">
+            <div class="info-panel">
+                <h3>📖 Сюжет</h3>
+                <p>Белан - легендарный рыбак, вор и меломан. Его цель проста: нарубить денег, купить кучу подиков и наслаждаться творчеством Толи Саммера.</p>
+                <p style="margin-top: 10px;">Помешать ему пытаются: Отец Веник (кричит), Брат Саня (ест), Грузин (издевается), а сам Логан постоянно ломается.</p>
+            </div>
+            <div class="info-panel">
+                <h3>🎮 Как играть</h3>
+                <p>1. Нажимай на кнопку и ловись рыба на сети!</p>
+                <p>2. Покупай улучшения, чтобы кликать быстрее</p>
+                <p>3. Открывай новые способности и достижения</p>
+                <p>4. Наслаждайся жизнью Белана</p>
+            </div>
+            <div class="info-panel">
+                <h3>⚠️ Случайные события</h3>
+                <p>Внезапно может произойти всё что угодно: Отец Веник может прибить, Грузин унизить, Саня съесть, а Логан поломаться. Следите за уведомлениями!</p>
+            </div>
+            <div class="version">Version 1.0.0 | Беланская Империя © 2026</div>
+        </div>
+    </div>
+
+    <!-- Модальные окна событий -->
+    <div class="modal" id="eventModal">
+        <div class="modal-content">
+            <div class="modal-title" id="eventTitle">Событие</div>
+            <div class="modal-text" id="eventText">...</div>
+            <div class="modal-buttons">
+                <button class="modal-btn" id="eventBtn1">ОК</button>
+                <button class="modal-btn cancel" id="eventBtn2" style="display:none;">Отмена</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Telegram Web App
+        let tg = window.Telegram.WebApp;
+        tg.ready();
+
+        // Основная логика игры
+        const game = {
+            money: 0,
+            moneyPerClick: 1,
+            moneyPerSec: 0,
+            level: 1,
+            totalClicks: 0,
+            totalEarnings: 0,
+
+            upgrades: [
+                {
+                    id: 'pasito2',
+                    name: '🚭 Новый испарик на Pasito II',
+                    desc: 'Увеличивает клик в 1.5 раза',
+                    price: 50,
+                    cost: 50,
+                    effect: () => {
+                        game.moneyPerClick *= 1.5;
+                        addNotification('Испарик куплен! Кейф уровня +9000!');
+                    },
+                    icon: '🚭',
+                    bought: 0
+                },
+                {
+                    id: 'sanya',
+                    name: '🍔 Помочь брату Сане доесть комбо',
+                    desc: 'Пассивный доход +0.5 рыбы/сек',
+                    price: 100,
+                    cost: 100,
+                    effect: () => {
+                        game.moneyPerSec += 0.5;
+                        addNotification('Саня начал кушать! Доход +0.5/сек');
+                    },
+                    icon: '🍔',
+                    passive: true,
+                    bought: 0
+                },
+                {
+                    id: 'vaz2111',
+                    name: '🚗 Починить ВАЗ 2111',
+                    desc: 'Увеличивает клик в 2 раза',
+                    price: 200,
+                    cost: 200,
+                    effect: () => {
+                        game.moneyPerClick *= 2;
+                        addNotification('2111 чинится! Теперь на ней хоть может ездить!');
+                    },
+                    icon: '🚗',
+                    bought: 0
+                },
+                {
+                    id: 'logan',
+                    name: '🚙 Логан на дороге',
+                    desc: '+1 рыба/сек но периодически ломается',
+                    price: 300,
+                    cost: 300,
+                    effect: () => {
+                        game.moneyPerSec += 1;
+                        addNotification('Логан на дороге! Но он скоро сломается...');
+                    },
+                    icon: '🚙',
+                    passive: true,
+                    bought: 0
+                },
+                {
+                    id: 'venik',
+                    name: '👨 Умилостивить Отца Веника',
+                    desc: 'Уменьшает штрафы от его придирок',
+                    price: 150,
+                    cost: 150,
+                    effect: () => {
+                        game.money += 200;
+                        addNotification('Веник дал 200 рыб за послушание!');
+                    },
+                    icon: '👨',
+                    bought: 0
+                },
+                {
+                    id: 'gruzin',
+                    name: '😈 Подружиться с Грузином',
+                    desc: 'Грузин больше не унижает, +200 доход',
+                    price: 250,
+                    cost: 250,
+                    effect: () => {
+                        game.money += 300;
+                        addNotification('Грузин перестал издеваться! +300 рыб!');
+                    },
+                    icon: '😈',
+                    bought: 0
+                },
+                {
+                    id: 'tolya',
+                    name: '🎵 Альбом Толи Саммера',
+                    desc: 'Вдохновляет на работу! +1 клик',
+                    price: 100,
+                    cost: 100,
+                    effect: () => {
+                        game.moneyPerClick += 1;
+                        addNotification('ТОЛЯ САММЕР! +1 к кликам!');
+                    },
+                    icon: '🎵',
+                    bought: 0
+                },
+                {
+                    id: 'pyaterochka',
+                    name: '🏪 Воровство в Пятёрочке',
+                    desc: 'Рискованно но выгодно! +500 одноразово',
+                    price: 0,
+                    cost: 500,
+                    effect: () => {
+                        if (Math.random() > 0.3) {
+                            game.money += 500;
+                            addNotification('Вор по жизни! Украл 500 рыб!');
+                        } else {
+                            showEvent(
+                                '🚨 ПОЙМАЛИ!',
+                                'Охранник словил тебя! -200 рыб и штраф!',
+                                ['ОК']
+                            );
+                            game.money = Math.max(0, game.money - 200);
+                        }
+                    },
+                    icon: '🏪',
+                    bought: 0
+                },
+                {
+                    id: 'college',
+                    name: '📚 Попробовать учиться в путяге',
+                    desc: 'Получить образование! +2 клика за просмотр',
+                    price: 400,
+                    cost: 400,
+                    effect: () => {
+                        game.moneyPerClick += 2;
+                        addNotification('Учёный Белан! +2 к кликам!');
+                    },
+                    icon: '📚',
+                    bought: 0
+                },
+                {
+                    id: 'zhizha',
+                    name: '💧 Поиск жижи',
+                    desc: 'Долгий поиск... +100/сек в течение 10 сек',
+                    price: 350,
+                    cost: 350,
+                    effect: () => {
+                        let boost = 100;
+                        let duration = 10;
+                        const originalPerSec = game.moneyPerSec;
+                        game.moneyPerSec += boost;
+                        addNotification('ЖИЖА! +100/сек на 10 сек!');
+                        
+                        setTimeout(() => {
+                            game.moneyPerSec = originalPerSec;
+                        }, duration * 1000);
+                    },
+                    icon: '💧',
+                    bought: 0
+                },
+                {
+                    id: 'megafish',
+                    name: '🐋 Поймать мега-рыбу',
+                    desc: 'Редкая удача! +1000 рыб одноразово',
+                    price: 800,
+                    cost: 800,
+                    effect: () => {
+                        if (Math.random() > 0.7) {
+                            game.money += 1000;
+                            addNotification('МЕГА-РЫБА! +1000 РЫБЪ!');
+                        } else {
+                            addNotification('Не повезло... рыба убежала');
+                        }
+                    },
+                    icon: '🐋',
+                    bought: 0
+                }
+            ],
+
+            achievements: [
+                {
+                    id: 'first_click',
+                    name: 'Первый клик',
+                    desc: 'Сделай первый клик',
+                    icon: '👆',
+                    unlocked: false,
+                    check: () => game.totalClicks >= 1
+                },
+                {
+                    id: 'hundred',
+                    name: 'Сотня',
+                    desc: 'Накопи 100 рыб',
+                    icon: '💯',
+                    unlocked: false,
+                    check: () => game.totalEarnings >= 100
+                },
+                {
+                    id: 'millionaire',
+                    name: 'Жирный кот',
+                    desc: 'Накопи 5000 рыб',
+                    icon: '😺',
+                    unlocked: false,
+                    check: () => game.totalEarnings >= 5000
+                },
+                {
+                    id: 'kliker',
+                    name: 'Кликозависимый',
+                    desc: 'Сделай 1000 кликов',
+                    icon: '⚡',
+                    unlocked: false,
+                    check: () => game.totalClicks >= 1000
+                },
+                {
+                    id: 'belan_fan',
+                    name: 'Фанат Толи',
+                    desc: 'Купи альбом Толи Саммера',
+                    icon: '🎵',
+                    unlocked: false,
+                    check: () => {
+                        const tolya = game.upgrades.find(u => u.id === 'tolya');
+                        return tolya && tolya.bought > 0;
+                    }
+                },
+                {
+                    id: 'criminal',
+                    name: 'Вор',
+                    desc: 'Украдь в Пятёрочке',
+                    icon: '🏪',
+                    unlocked: false,
+                    check: () => {
+                        const pyat = game.upgrades.find(u => u.id === 'pyaterochka');
+                        return pyat && pyat.bought > 0;
+                    }
+                },
+                {
+                    id: 'speedy',
+                    name: 'Космическая скорость',
+                    desc: 'Достигни 10+ кликов в секунду',
+                    icon: '🚀',
+                    unlocked: false,
+                    check: () => game.moneyPerClick >= 10
+                },
+                {
+                    id: 'rich_man',
+                    name: 'Капиталист',
+                    desc: 'Куплю 10 улучшений',
+                    icon: '💰',
+                    unlocked: false,
+                    check: () => {
+                        const bought = game.upgrades.reduce((sum, u) => sum + u.bought, 0);
+                        return bought >= 10;
+                    }
+                }
+            ]
+        };
+
+        // Загрузка из localStorage
+        function loadGame() {
+            const saved = localStorage.getItem('belanGame');
+            if (saved) {
+                const data = JSON.parse(saved);
+                game.money = data.money || 0;
+                game.moneyPerClick = data.moneyPerClick || 1;
+                game.moneyPerSec = data.moneyPerSec || 0;
+                game.level = data.level || 1;
+                game.totalClicks = data.totalClicks || 0;
+                game.totalEarnings = data.totalEarnings || 0;
+                
+                if (data.upgrades) {
+                    game.upgrades.forEach((upgrade, idx) => {
+                        if (data.upgrades[idx]) {
+                            upgrade.bought = data.upgrades[idx].bought || 0;
+                        }
+                    });
+                }
+            }
+        }
+
+        // Сохранение в localStorage
+        function saveGame() {
+            localStorage.setItem('belanGame', JSON.stringify({
+                money: game.money,
+                moneyPerClick: game.moneyPerClick,
+                moneyPerSec: game.moneyPerSec,
+                level: game.level,
+                totalClicks: game.totalClicks,
+                totalEarnings: game.totalEarnings,
+                upgrades: game.upgrades.map(u => ({ bought: u.bought }))
+            }));
+        }
+
+        // Клик по кнопке
+        document.getElementById('clickBtn').addEventListener('click', function(e) {
+            game.money += game.moneyPerClick;
+            game.totalClicks++;
+            game.totalEarnings += game.moneyPerClick;
+            
+            // Эффект плавающего текста
+            const rect = this.getBoundingClientRect();
+            const floatText = document.createElement('div');
+            floatText.className = 'float-text';
+            floatText.textContent = '+' + Math.floor(game.moneyPerClick);
+            floatText.style.left = (rect.left + rect.width / 2) + 'px';
+            floatText.style.top = (rect.top + rect.height / 2) + 'px';
+            floatText.style.color = '#ffd700';
+            document.body.appendChild(floatText);
+            
+            setTimeout(() => floatText.remove(), 1000);
+            
+            updateUI();
+            
+            // Случайные события
+            if (Math.random() < 0.02) {
+                triggerRandomEvent();
+            }
+            
+            // Проверка достижений
+            checkAchievements();
+        });
+
+        // Пассивный доход
+        setInterval(() => {
+            game.money += game.moneyPerSec / 10; // Обновляем 10 раз в секунду
+            updateUI();
+            checkAchievements();
+        }, 100);
+
+        // Случайные события
+        const events = [
+            {
+                title: '👨 ВЕНИК ПРИЕХАЛ!',
+                text: 'Отец Веник прибил тебя! -100 рыб за отговорки!',
+                effect: () => {
+                    game.money = Math.max(0, game.money - 100);
+                }
+            },
+            {
+                title: '😈 ГРУЗИН ИЗДЕВАЕТСЯ',
+                text: '"Эй Беланн, ты вообще лузер!" -50 рыб за оскорбления!',
+                effect: () => {
+                    game.money = Math.max(0, game.money - 50);
+                }
+            },
+            {
+                title: '🍔 САНЯ ГОЛОДНЫЙ',
+                text: 'Брат Саня просит комбо! +100 рыб если дашь!',
+                effect: () => {
+                    if (game.money >= 100) {
+                        game.money -= 100;
+                        addNotification('Саня поел, спасибо');
+                    }
+                }
+            },
+            {
+                title: '🚙 ЛОГАН СЛОМАЛСЯ',
+                text: 'Логан поломался снова! Доход -50% на 30 сек',
+                effect: () => {
+                    const backup = game.moneyPerSec;
+                    game.moneyPerSec *= 0.5;
+                    setTimeout(() => {
+                        game.moneyPerSec = backup;
+                        addNotification('Логан чинится... опять');
+                    }, 30000);
+                }
+            },
+            {
+                title: '🎵 ТОЛЯ САММЕР В РАДИО!',
+                text: 'Твой любимый исполнитель! +200 рыб вдохновения!',
+                effect: () => {
+                    game.money += 200;
+                }
+            },
+            {
+                title: '🚭 ЖИЖА УПАЛА!',
+                text: 'Нашёл жижу где-то! +50 рыб и настроение на вершине!',
+                effect: () => {
+                    game.money += 50;
+                }
+            },
+            {
+                title: '🐟 ГНИЛАЯ РЫБА ПРОДАНА',
+                text: 'Договорился с перекупщиком! +300 рыб за рыбешку!',
+                effect: () => {
+                    game.money += 300;
+                }
+            }
+        ];
+
+        function triggerRandomEvent() {
+            const event = events[Math.floor(Math.random() * events.length)];
+            showEvent(event.title, event.text, ['ОК']);
+            event.effect();
+            updateUI();
+        }
+
+        // Модальные окна
+        function showEvent(title, text, buttons = ['ОК']) {
+            const modal = document.getElementById('eventModal');
+            document.getElementById('eventTitle').textContent = title;
+            document.getElementById('eventText').textContent = text;
+            
+            const btn1 = document.getElementById('eventBtn1');
+            const btn2 = document.getElementById('eventBtn2');
+            
+            btn1.textContent = buttons[0] || 'ОК';
+            btn1.onclick = () => modal.classList.remove('active');
+            
+            if (buttons.length > 1) {
+                btn2.textContent = buttons[1];
+                btn2.style.display = 'inline-block';
+                btn2.onclick = () => modal.classList.remove('active');
+            } else {
+                btn2.style.display = 'none';
+            }
+            
+            modal.classList.add('active');
+        }
+
+        // Уведомления
+        function addNotification(text) {
+            const notification = document.createElement('div');
+            notification.className = 'notification';
+            notification.textContent = text;
+            document.body.appendChild(notification);
+            
+            setTimeout(() => {
+                notification.style.animation = 'slideIn 0.3s ease-out reverse forwards';
+                setTimeout(() => notification.remove(), 300);
+            }, 3000);
+        }
+
+        // Обновление интерфейса
+        function updateUI() {
+            document.getElementById('money').textContent = Math.floor(game.money);
+            document.getElementById('level').textContent = game.level;
+            document.getElementById('moneyPerSec').textContent = 
+                '+' + game.moneyPerSec.toFixed(1) + '/сек';
+            
+            // Обновление магазина
+            const shopGrid = document.getElementById('shopGrid');
+            shopGrid.innerHTML = '';
+            
+            game.upgrades.forEach(upgrade => {
+                const item = document.createElement('div');
+                item.className = 'shop-item';
+                if (game.money < upgrade.price && upgrade.price > 0) {
+                    item.classList.add('disabled');
+                }
+                
+                item.innerHTML = `
+                    <div class="shop-info">
+                        <div class="shop-name">${upgrade.icon} ${upgrade.name}</div>
+                        <div class="shop-desc">${upgrade.desc}</div>
+                        <div class="shop-price">${upgrade.price > 0 ? upgrade.price + ' рыб' : 'ОПАСНО!'}</div>
+                    </div>
+                    <button class="shop-button" 
+                        ${game.money < upgrade.price && upgrade.price > 0 ? 'disabled' : ''}
+                        onclick="buyUpgrade('${upgrade.id}')">
+                        КУПИТЬ
+                    </button>
+                `;
+                shopGrid.appendChild(item);
+            });
+        }
+
+        // Покупка улучшений
+        window.buyUpgrade = function(id) {
+            const upgrade = game.upgrades.find(u => u.id === id);
+            if (upgrade && game.money >= upgrade.price) {
+                game.money -= upgrade.price;
+                upgrade.bought++;
+                upgrade.effect();
+                game.level++;
+                saveGame();
+                updateUI();
+                checkAchievements();
+            }
+        };
+
+        // Проверка достижений
+        function checkAchievements() {
+            game.achievements.forEach(ach => {
+                if (!ach.unlocked && ach.check()) {
+                    ach.unlocked = true;
+                    addNotification(`🏆 Достижение: ${ach.name}!`);
+                    updateAchievements();
+                }
+            });
+        }
+
+        // Обновление достижений
+        function updateAchievements() {
+            const grid = document.getElementById('achievementsGrid');
+            grid.innerHTML = '';
+            
+            game.achievements.forEach(ach => {
+                const item = document.createElement('div');
+                item.className = 'achievement ' + (ach.unlocked ? 'unlocked' : 'locked');
+                item.innerHTML = `
+                    <div class="achievement-icon">${ach.icon}</div>
+                    <div class="achievement-name">${ach.name}</div>
+                    <div class="achievement-desc">${ach.desc}</div>
+                `;
+                grid.appendChild(item);
+            });
+        }
+
+        // Табы
+        document.querySelectorAll('.tab').forEach(tab => {
+            tab.addEventListener('click', function() {
+                document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+                document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+                
+                this.classList.add('active');
+                document.getElementById(this.dataset.tab).classList.add('active');
+            });
+        });
+
+        // Закрытие модального окна при клике вне его
+        document.getElementById('eventModal').addEventListener('click', function(e) {
+            if (e.target === this) {
+                this.classList.remove('active');
+            }
+        });
+
+        // Инициализация
+        loadGame();
+        updateUI();
+        updateAchievements();
+        
+        // Автосохранение
+        setInterval(saveGame, 5000);
+
+        // Запуск Telegram Web App
+        tg.expand();
+    </script>
+</body>
+</html>
